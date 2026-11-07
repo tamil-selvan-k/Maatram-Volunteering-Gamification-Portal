@@ -64,6 +64,7 @@ export const QRScanner = memo(function QRScanner({ onScan, onClose }: QRScannerP
   const [scanState, setScanState] = useState<ScanState>('scanning')
   const [statusMsg, setStatusMsg] = useState('')
   const isProcessing = useRef(false)
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Scan line animation
   const scanY = useSharedValue(0)
@@ -75,6 +76,16 @@ export const QRScanner = memo(function QRScanner({ onScan, onClose }: QRScannerP
       true
     )
   }, [scanY])
+
+  // Clean up the error-reset timer on unmount to prevent state updates on an unmounted component
+  useEffect(() => {
+    return () => {
+      if (resetTimerRef.current) {
+        clearTimeout(resetTimerRef.current)
+        resetTimerRef.current = null
+      }
+    }
+  }, [])
 
   const scanLineStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: scanY.value * FRAME }],
@@ -101,9 +112,10 @@ export const QRScanner = memo(function QRScanner({ onScan, onClose }: QRScannerP
           err instanceof Error ? err.message : 'QR code not valid for this event'
         setStatusMsg(msg)
         // Auto-reset after 3 seconds
-        setTimeout(() => {
+        resetTimerRef.current = setTimeout(() => {
           setScanState('scanning')
           isProcessing.current = false
+          resetTimerRef.current = null
         }, 3000)
       }
     },

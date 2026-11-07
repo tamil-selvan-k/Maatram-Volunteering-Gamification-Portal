@@ -127,6 +127,7 @@ export default function ProfileScreen() {
   const onSubmit = async (values: ProfileFormValues) => {
     if (!volunteer) return
     const result = await updateVolunteerProfile(volunteer.id, {
+      full_name: values.full_name,
       preferences: values.preferences,
       skills: values.skills,
       consent_push: values.consent_push,

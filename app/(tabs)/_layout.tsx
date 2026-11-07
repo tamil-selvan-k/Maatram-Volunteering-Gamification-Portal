@@ -1,9 +1,11 @@
+import React from 'react'
 import { Tabs } from 'expo-router'
 import { Home, Search, BarChart2, Trophy, User, Bell, ShieldCheck } from 'lucide-react-native'
 import { View, Text } from 'react-native'
 import { COLORS } from '@/constants/theme'
 import { useAuthStore, selectVolunteer, selectIsAdmin } from '@/stores/auth.store'
 import { useUnreadCount } from '@/hooks/useNotifications'
+import { LevelUpModal } from '@/components/gamification/LevelUpModal'
 
 function NotifIcon({ color, size }: { color: string | undefined; size: number }) {
   const volunteer = useAuthStore(selectVolunteer)
@@ -42,6 +44,7 @@ export default function TabsLayout() {
   const isAdmin = useAuthStore(selectIsAdmin)
 
   return (
+    <>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -108,5 +111,7 @@ export default function TabsLayout() {
         }}
       />
     </Tabs>
+    <LevelUpModal />
+    </>
   )
 }

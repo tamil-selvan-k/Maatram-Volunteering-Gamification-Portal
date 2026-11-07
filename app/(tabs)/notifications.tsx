@@ -13,7 +13,7 @@ import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/useNotifications'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { COLORS } from '@/constants/theme'
-import type { Notification } from '@/services/notifications.service'
+import type { Notification } from '@/types'
 
 function formatRelativeTime(iso: string): string {
   const ms = Date.now() - new Date(iso).getTime()

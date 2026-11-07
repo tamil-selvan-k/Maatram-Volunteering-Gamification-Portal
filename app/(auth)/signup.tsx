@@ -28,6 +28,7 @@ export default function SignupScreen() {
       full_name: '',
       email: '',
       password: '',
+      confirmPassword: '',
       phone: '',
       role: 'student',
       employer_org: '',
@@ -114,6 +115,22 @@ export default function SignupScreen() {
                 onChangeText={onChange}
                 onBlur={onBlur}
                 error={errors.password?.message}
+              />
+            )}
+          />
+
+          <Controller
+            control={control}
+            name="confirmPassword"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <Input
+                label="Confirm Password"
+                placeholder="Re-enter your password"
+                secureTextEntry
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                error={errors.confirmPassword?.message}
               />
             )}
           />

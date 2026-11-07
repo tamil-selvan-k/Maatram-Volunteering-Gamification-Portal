@@ -226,6 +226,10 @@ create policy "Volunteers: read own"
     select 1 from volunteers where id = auth.uid() and is_admin = true
   ));
 
+create policy "Volunteers: insert own"
+  on volunteers for insert
+  with check (auth.uid() = id);
+
 create policy "Volunteers: update own"
   on volunteers for update
   using (auth.uid() = id);
@@ -279,6 +283,17 @@ create policy "Points log: read own"
 create policy "Badges: read own"
   on badges for select
   using (volunteer_id = auth.uid());
+
+-- Peer confirmations: own confirmer rows
+create policy "Peer confirmations: read own"
+  on peer_confirmations for select
+  using (confirmer_id = auth.uid() or exists (
+    select 1 from volunteers where id = auth.uid() and is_admin = true
+  ));
+
+create policy "Peer confirmations: insert own"
+  on peer_confirmations for insert
+  with check (confirmer_id = auth.uid());
 
 -- Notifications: own rows
 create policy "Notifications: read own"

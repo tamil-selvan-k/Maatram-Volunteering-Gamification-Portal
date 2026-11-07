@@ -13,11 +13,17 @@ BEGIN
   SELECT email, full_name INTO vol_email, vol_name
   FROM volunteers WHERE id = NEW.volunteer_id;
 
-  PERFORM pg_net.http_post(
-    url     := current_setting('app.supabase_url') || '/functions/v1/send-email',
+  -- Guard: skip silently if URL not configured (mirrors pattern in 002_points_engine.sql)
+  IF current_setting('app.supabase_url', true) IS NULL
+     OR current_setting('app.supabase_url', true) = '' THEN
+    RETURN NEW;
+  END IF;
+
+  PERFORM net.http_post(
+    url     := current_setting('app.supabase_url', true) || '/functions/v1/send-email',
     headers := jsonb_build_object(
       'Content-Type',  'application/json',
-      'Authorization', 'Bearer ' || current_setting('app.service_role_key')
+      'Authorization', 'Bearer ' || current_setting('app.service_role_key', true)
     ),
     body    := jsonb_build_object(
       'to_email',       vol_email,

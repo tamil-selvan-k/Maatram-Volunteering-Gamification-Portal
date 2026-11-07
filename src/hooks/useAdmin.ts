@@ -55,9 +55,9 @@ export function useUpdateRegistrationStatus() {
       status,
     }: {
       registrationId: string
-      status: 'selected' | 'rejected' | 'attended'
+      status: RegistrationStatus
       opportunityId: string
-    }) => updateRegistrationStatus(registrationId, status as RegistrationStatus & ('selected' | 'rejected' | 'attended')),
+    }) => updateRegistrationStatus(registrationId, status),
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: ADMIN_KEYS.registrations(variables.opportunityId),

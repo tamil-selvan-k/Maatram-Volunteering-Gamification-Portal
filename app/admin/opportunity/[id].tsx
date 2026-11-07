@@ -88,7 +88,7 @@ const RegistrationRow = memo(function RegistrationRow({
 }) {
   const { mutate: updateStatus, isPending } = useUpdateRegistrationStatus()
 
-  const handleAction = (status: 'selected' | 'rejected') => {
+  const handleAction = (status: 'selected' | 'declined') => {
     Alert.alert(
       `Mark as ${status}?`,
       `Set ${item.volunteer_name}'s registration to "${status}"?`,
@@ -96,7 +96,7 @@ const RegistrationRow = memo(function RegistrationRow({
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Confirm',
-          style: status === 'rejected' ? 'destructive' : 'default',
+          style: status === 'declined' ? 'destructive' : 'default',
           onPress: () => {
             updateStatus(
               { registrationId: item.id, status, opportunityId },
@@ -159,7 +159,7 @@ const RegistrationRow = memo(function RegistrationRow({
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={() => handleAction('rejected')}
+            onPress={() => handleAction('declined')}
             disabled={isPending}
             activeOpacity={0.7}
             style={{

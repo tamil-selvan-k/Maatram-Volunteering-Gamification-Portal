@@ -1,16 +1,6 @@
 import { supabase } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
-import type { Result } from '@/types'
-
-export interface Notification {
-  id: string
-  volunteer_id: string
-  title: string
-  body: string
-  type: 'badge_earned' | 'points_awarded' | 'opportunity_selected' | 'reminder' | 'general'
-  read: boolean
-  created_at: string
-}
+import type { Result, Notification } from '@/types'
 
 export async function getNotifications(volunteerId: string): Promise<Result<Notification[]>> {
   try {

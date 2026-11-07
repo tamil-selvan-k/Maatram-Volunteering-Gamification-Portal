@@ -13,9 +13,11 @@
       "backgroundColor": "#0D0D0F"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "org.maatram.portal"
     },
     "android": {
+      "package": "org.maatram.portal",
       "backgroundColor": "#0D0D0F",
       "adaptiveIcon": {
         "backgroundColor": "#0D0D0F",
@@ -32,6 +34,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-camera",
         { "cameraPermission": "Allow Maatram to access your camera for event photo proof." }

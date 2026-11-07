@@ -326,7 +326,7 @@ INSERT INTO verifications (
     'r1000000-0001-0000-0000-000000000002',
     now() - interval '30 days',
     now() - interval '30 days' + interval '4 hours',
-    1, 'photo_and_qr'::text::verification_level_enum,
+    1, 'qr_peer',
     4.0, 240, true
   ),
   (

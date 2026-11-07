@@ -259,12 +259,11 @@ begin
   from opportunities o where o.id = p_opportunity_id;
 
   -- first-type bonus: has volunteer done this activity type before?
+  -- reference_id in points_log stores the opportunity UUID, so join directly.
   select not exists (
     select 1
     from points_log pl
-    join verifications ve2 on ve2.id = pl.reference_id
-    join registrations r2  on r2.id = ve2.registration_id
-    join opportunities o2  on o2.id = r2.opportunity_id
+    join opportunities o2 on o2.id = pl.reference_id
     where pl.volunteer_id = p_volunteer_id
       and o2.activity_type::text = v_activity_type
   ) into v_is_first_type;

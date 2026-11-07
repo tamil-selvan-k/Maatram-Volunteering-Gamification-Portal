@@ -18,6 +18,7 @@ export async function getVolunteerById(id: string): Promise<Result<Volunteer>> {
 }
 
 export interface VolunteerProfileUpdates {
+  full_name?: string
   preferences?: string[]
   skills?: string[]
   consent_push?: boolean

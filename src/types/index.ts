@@ -139,6 +139,16 @@ export interface AppError {
   originalError?: unknown
 }
 
+export interface Notification {
+  id: string
+  volunteer_id: string
+  title: string
+  body: string
+  type: 'badge_earned' | 'points_awarded' | 'opportunity_selected' | 'reminder' | 'general'
+  read: boolean
+  created_at: string
+}
+
 export interface PaginatedResult<T> {
   items: T[]
   total: number

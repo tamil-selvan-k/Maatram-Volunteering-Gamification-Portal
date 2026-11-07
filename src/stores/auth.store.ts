@@ -18,12 +18,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   _prevLevel: 1,
   setVolunteer: (volunteer) => {
     const prevLevel = get()._prevLevel
+    const wasLoaded = get().volunteer !== null   // true only on subsequent updates
     const newLevel = volunteer ? getLevelInfo(volunteer.total_points).level : 1
 
     set({ volunteer, _prevLevel: newLevel })
 
-    // Detect level-up: lazy import to avoid circular dependency
-    if (volunteer && newLevel > prevLevel && prevLevel !== 1) {
+    // Detect level-up: only fire when the volunteer was already loaded (not initial load).
+    // Using `wasLoaded` instead of `prevLevel !== 1` so that genuine 1 → 2 transitions
+    // are not silently dropped.
+    if (volunteer && newLevel > prevLevel && wasLoaded) {
       // Dynamic import to avoid the circular dep between auth.store ↔ ui.store
       import('@/stores/ui.store').then(({ useUIStore }) => {
         const levelName = getLevelInfo(volunteer.total_points).name

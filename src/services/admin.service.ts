@@ -152,16 +152,19 @@ export async function getAllOpportunities(
       ids.map(async (id) => {
         const opp = opportunities.find((o) => o.id === id)!
 
-        const { count: regCount } = await supabase
+        const { data: regRows, count: regCount } = await supabase
           .from('registrations')
-          .select('id', { count: 'exact', head: true })
+          .select('id', { count: 'exact' })
           .eq('opportunity_id', id)
 
-        const { count: verCount } = await supabase
-          .from('registrations')
-          .select('id', { count: 'exact', head: true })
-          .eq('opportunity_id', id)
-          .eq('status', 'attended')
+        const regIdList = ((regRows ?? []) as Array<{ id: string }>).map((r) => r.id)
+        const { count: verCount } = regIdList.length > 0
+          ? await supabase
+              .from('verifications')
+              .select('id', { count: 'exact', head: true })
+              .in('registration_id', regIdList)
+              .not('checkout_time', 'is', null)
+          : { count: 0 as number | null }
 
         return {
           id: opp.id,
@@ -262,7 +265,7 @@ export async function getOpportunityRegistrations(
 
 export async function updateRegistrationStatus(
   registrationId: string,
-  status: 'selected' | 'rejected' | 'attended'
+  status: RegistrationStatus
 ): Promise<Result<void>> {
   try {
     const { error } = await supabase

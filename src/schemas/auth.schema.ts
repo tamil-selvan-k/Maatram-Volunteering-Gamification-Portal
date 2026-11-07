@@ -6,12 +6,16 @@ export const loginSchema = z.object({
 })
 
 export const signupSchema = z.object({
-  full_name:    z.string().min(2, 'Name must be at least 2 characters').max(100),
-  email:        z.string().email('Enter a valid email address'),
-  password:     z.string().min(8, 'Password must be at least 8 characters'),
-  phone:        z.string().regex(/^\+?[\d\s-]{10,15}$/, 'Enter a valid phone number').optional().or(z.literal('')),
-  role:         z.enum(['student', 'alumni', 'supporter']),
-  employer_org: z.string().max(100).optional().or(z.literal('')),
+  full_name:       z.string().min(2, 'Name must be at least 2 characters').max(100),
+  email:           z.string().email('Enter a valid email address'),
+  password:        z.string().min(8, 'Password must be at least 8 characters'),
+  confirmPassword: z.string().min(1, 'Please confirm your password'),
+  phone:           z.string().regex(/^\+?[\d\s-]{10,15}$/, 'Enter a valid phone number').optional().or(z.literal('')),
+  role:            z.enum(['student', 'alumni', 'supporter']),
+  employer_org:    z.string().max(100).optional().or(z.literal('')),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Passwords do not match',
+  path: ['confirmPassword'],
 })
 
 export const onboardingSchema = z.object({

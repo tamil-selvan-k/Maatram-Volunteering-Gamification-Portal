@@ -46,16 +46,111 @@ export async function updateVolunteerProfile(
   }
 }
 
-export async function getLeaderboard(): Promise<Result<LeaderboardEntry[]>> {
+export type LeaderboardPeriod = 'month' | 'quarter' | 'all'
+
+export async function getLeaderboard(period: LeaderboardPeriod = 'all'): Promise<Result<LeaderboardEntry[]>> {
+  try {
+    // All-time uses the pre-computed materialized view (fast)
+    if (period === 'all') {
+      const { data, error } = await supabase
+        .from('leaderboard_mv')
+        .select('*')
+        .order('rank', { ascending: true })
+        .limit(50)
+      if (error) return { data: null, error: toAppError(error) }
+      return { data: data as LeaderboardEntry[], error: null }
+    }
+
+    // Monthly / quarterly: aggregate points_log with a date filter
+    const cutoff = new Date()
+    if (period === 'month') cutoff.setMonth(cutoff.getMonth() - 1)
+    else cutoff.setMonth(cutoff.getMonth() - 3)
+
+    const { data: logs, error: logErr } = await supabase
+      .from('points_log')
+      .select('volunteer_id, points')
+      .gte('created_at', cutoff.toISOString())
+
+    if (logErr) return { data: null, error: toAppError(logErr) }
+
+    // Aggregate points per volunteer
+    const pointsMap = new Map<string, number>()
+    for (const row of logs) {
+      pointsMap.set(row.volunteer_id, (pointsMap.get(row.volunteer_id) ?? 0) + row.points)
+    }
+    const topIds = Array.from(pointsMap.entries())
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 50)
+      .map(([id]) => id)
+
+    if (topIds.length === 0) return { data: [], error: null }
+
+    const { data: vols, error: volErr } = await supabase
+      .from('volunteers')
+      .select('id, full_name, role, employer_org, level, streak_months')
+      .in('id', topIds)
+
+    if (volErr) return { data: null, error: toAppError(volErr) }
+
+    const sorted: LeaderboardEntry[] = topIds
+      .map((vid, i) => {
+        const vol = (vols as Array<{ id: string; full_name: string; role: string; employer_org: string | null; level: number; streak_months: number }>).find((v) => v.id === vid)
+        if (!vol) return null
+        return {
+          id: vol.id,
+          full_name: vol.full_name,
+          role: vol.role as LeaderboardEntry['role'],
+          employer_org: vol.employer_org,
+          total_points: pointsMap.get(vid) ?? 0,
+          level: vol.level,
+          streak_months: vol.streak_months,
+          total_events: 0,
+          total_hours: 0,
+          rank: i + 1,
+        } satisfies LeaderboardEntry
+      })
+      .filter((e): e is LeaderboardEntry => e !== null)
+
+    return { data: sorted, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function getVolunteerBadges(volunteerId: string): Promise<Result<string[]>> {
   try {
     const { data, error } = await supabase
-      .from('leaderboard_mv')
-      .select('*')
-      .order('rank', { ascending: true })
-      .limit(50)
+      .from('badges')
+      .select('badge_type')
+      .eq('volunteer_id', volunteerId)
+      .order('earned_at', { ascending: true })
 
     if (error) return { data: null, error: toAppError(error) }
-    return { data: data as LeaderboardEntry[], error: null }
+    return { data: (data as Array<{ badge_type: string }>).map(b => b.badge_type), error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function getActivityHeatmap(volunteerId: string): Promise<Result<Record<string, number>>> {
+  try {
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - 84) // 12 weeks
+
+    const { data, error } = await supabase
+      .from('points_log')
+      .select('created_at, points')
+      .eq('volunteer_id', volunteerId)
+      .gte('created_at', cutoff.toISOString())
+
+    if (error) return { data: null, error: toAppError(error) }
+
+    const heatmap: Record<string, number> = {}
+    for (const row of data as Array<{ created_at: string; points: number }>) {
+      const day = row.created_at.slice(0, 10) // YYYY-MM-DD
+      heatmap[day] = (heatmap[day] ?? 0) + row.points
+    }
+    return { data: heatmap, error: null }
   } catch (err) {
     return { data: null, error: toAppError(err) }
   }

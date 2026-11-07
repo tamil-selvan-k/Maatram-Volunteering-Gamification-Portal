@@ -20,7 +20,7 @@ const ROW_HEIGHT = 72
 
 export default function LeaderboardScreen() {
   const [period, setPeriod] = useState<Period>('month')
-  const { data: entries, isLoading } = useLeaderboard()
+  const { data: entries, isLoading } = useLeaderboard(period)
   const volunteer = useAuthStore(selectVolunteer)
 
   const top3  = (entries ?? []).slice(0, 3)

@@ -1,16 +1,18 @@
 import { ScrollView, View, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
+import { useBadges, useActivityHeatmap } from '@/hooks/useLeaderboard'
 import { ProgressRing } from '@/components/gamification/ProgressRing'
 import { StreakFlame } from '@/components/gamification/StreakFlame'
 import { BadgeGrid } from '@/components/gamification/BadgeGrid'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { COLORS } from '@/constants/theme'
 
-// 12 weeks × 7 days heatmap
 const WEEKS = 12
 const DAYS  = 7
 
-function HeatmapCell({ active }: { active: boolean }) {
+function HeatmapCell({ intensity }: { intensity: number }) {
+  const alpha = intensity === 0 ? 0 : Math.min(0.3 + intensity * 0.7, 1)
   return (
     <View
       className="rounded-sm"
@@ -18,30 +20,39 @@ function HeatmapCell({ active }: { active: boolean }) {
         width: 14,
         height: 14,
         margin: 1,
-        backgroundColor: active ? COLORS.gold : COLORS.surfaceElevated,
-        opacity: active ? 0.9 : 0.5,
+        backgroundColor: intensity > 0 ? COLORS.gold : COLORS.surfaceElevated,
+        opacity: intensity > 0 ? alpha : 0.4,
       }}
     />
   )
 }
 
-// Simple deterministic "fake" activity data for visual demo
-function generateHeatmapData(): boolean[][] {
+function buildHeatmapGrid(heatmap: Record<string, number>): number[][] {
+  const today = new Date()
+  const maxPoints = Math.max(...Object.values(heatmap), 1)
   return Array.from({ length: WEEKS }, (_, wi) =>
-    Array.from({ length: DAYS }, (_, di) => (wi + di) % 5 === 0)
+    Array.from({ length: DAYS }, (_, di) => {
+      const d = new Date(today)
+      d.setDate(d.getDate() - ((WEEKS - 1 - wi) * 7 + (DAYS - 1 - di)))
+      const key = d.toISOString().slice(0, 10)
+      const pts = heatmap[key] ?? 0
+      return pts / maxPoints
+    })
   )
 }
 
 export default function DashboardScreen() {
-  const volunteer     = useAuthStore(selectVolunteer)
-  const earnedBadges  = ['first_step'] // In production, fetched from DB
-  const heatmapData   = generateHeatmapData()
+  const volunteer = useAuthStore(selectVolunteer)
+  const { data: earnedBadges = [], isLoading: badgesLoading } = useBadges(volunteer?.id)
+  const { data: heatmapRaw = {}, isLoading: heatmapLoading } = useActivityHeatmap(volunteer?.id)
 
-  const points        = volunteer?.total_points ?? 0
-  const streakMonths  = volunteer?.streak_months ?? 0
-  const completed     = volunteer?.times_completed ?? 0
-  const selected      = volunteer?.times_selected ?? 0
-  const reliability   = selected > 0 ? Math.round((completed / selected) * 100) : 100
+  const points       = volunteer?.total_points ?? 0
+  const streakMonths = volunteer?.streak_months ?? 0
+  const completed    = volunteer?.times_completed ?? 0
+  const selected     = volunteer?.times_selected ?? 0
+  const reliability  = selected > 0 ? Math.round((completed / selected) * 100) : 100
+
+  const heatmapGrid = buildHeatmapGrid(heatmapRaw)
 
   return (
     <SafeAreaView className="flex-1 bg-bg">
@@ -52,12 +63,10 @@ export default function DashboardScreen() {
       >
         <Text className="text-white font-bold text-xl mb-4">My Impact</Text>
 
-        {/* Progress ring centred */}
         <View className="items-center mb-6">
           <ProgressRing points={points} />
         </View>
 
-        {/* Stats row */}
         <View className="flex-row gap-3 mb-6">
           {[
             { label: 'Events completed', value: String(completed) },
@@ -71,30 +80,35 @@ export default function DashboardScreen() {
           ))}
         </View>
 
-        {/* Streak */}
         <View className="bg-surface border border-border rounded-2xl p-4 mb-6 flex-row items-center justify-between">
           <Text className="text-white font-semibold">Active streak</Text>
           <StreakFlame months={streakMonths} />
         </View>
 
-        {/* Activity heatmap */}
         <View className="bg-surface border border-border rounded-2xl p-4 mb-6">
           <Text className="text-white font-semibold mb-3">Activity (last 12 weeks)</Text>
-          <View className="flex-row gap-0.5">
-            {heatmapData.map((week, wi) => (
-              <View key={wi} className="gap-0.5">
-                {week.map((active, di) => (
-                  <HeatmapCell key={di} active={active} />
-                ))}
-              </View>
-            ))}
-          </View>
+          {heatmapLoading ? (
+            <Skeleton height={14 * DAYS + 8} />
+          ) : (
+            <View className="flex-row gap-0.5">
+              {heatmapGrid.map((week, wi) => (
+                <View key={wi} className="gap-0.5">
+                  {week.map((intensity, di) => (
+                    <HeatmapCell key={di} intensity={intensity} />
+                  ))}
+                </View>
+              ))}
+            </View>
+          )}
         </View>
 
-        {/* Badges */}
         <View>
           <Text className="text-white font-semibold mb-3">Badges</Text>
-          <BadgeGrid earnedBadgeTypes={earnedBadges} />
+          {badgesLoading ? (
+            <Skeleton height={80} />
+          ) : (
+            <BadgeGrid earnedBadgeTypes={earnedBadges} />
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

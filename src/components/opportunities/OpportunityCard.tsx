@@ -1,5 +1,6 @@
 import React, { memo, useCallback } from 'react'
-import { View, Text } from 'react-native'
+import { View, Text, TouchableOpacity } from 'react-native'
+import { router } from 'expo-router'
 import { Clock, Users, Wifi, WifiOff, MapPin } from 'lucide-react-native'
 import { ActivityBadge } from '@/components/ui/ActivityBadge'
 import { Button } from '@/components/ui/Button'
@@ -28,8 +29,16 @@ export const OpportunityCard = memo(function OpportunityCard({
     onRegister(opp.id)
   }, [opp.id, onRegister])
 
+  const handleCardPress = useCallback(() => {
+    router.push(`/event/${opp.id}`)
+  }, [opp.id])
+
   return (
-    <View className="bg-surface border border-border rounded-2xl p-4 mb-3">
+    <TouchableOpacity
+      onPress={handleCardPress}
+      activeOpacity={0.85}
+      className="bg-surface border border-border rounded-2xl p-4 mb-3"
+    >
       {/* Header row */}
       <View className="flex-row items-center justify-between mb-3">
         <ActivityBadge type={opp.activity_type} />
@@ -89,6 +98,6 @@ export const OpportunityCard = memo(function OpportunityCard({
         </View>
         <Button title="I'm In" size="sm" loading={isRegistering} onPress={handleRegister} />
       </View>
-    </View>
+    </TouchableOpacity>
   )
 })

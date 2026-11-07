@@ -1,4 +1,5 @@
 import { TouchableOpacity, Text, ActivityIndicator, type TouchableOpacityProps } from 'react-native'
+import type { ReactElement } from 'react'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md' | 'lg'
@@ -8,6 +9,7 @@ interface ButtonProps extends Omit<TouchableOpacityProps, 'style'> {
   variant?: Variant
   size?: Size
   loading?: boolean
+  icon?: ReactElement
   className?: string
   textClassName?: string
 }
@@ -51,6 +53,7 @@ export function Button({
   size = 'md',
   loading = false,
   disabled = false,
+  icon,
   className = '',
   textClassName = '',
   ...props
@@ -63,6 +66,7 @@ export function Button({
       {...props}
     >
       {loading && <ActivityIndicator size="small" color={spinnerColors[variant]} />}
+      {!loading && icon}
       <Text className={`${textVariantClasses[variant]} ${textSizeClasses[size]} ${textClassName}`}>
         {title}
       </Text>

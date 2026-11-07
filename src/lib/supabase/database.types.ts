@@ -63,7 +63,11 @@ type VerificationRow = {
   registration_id: string
   checkin_time: string | null
   checkout_time: string | null
+  checkin_location: string | null
+  checkout_location: string | null
   photo_url: string | null
+  photo_location: string | null
+  qr_payload: string | null
   peer_confirms: number
   verification_level: string
   verified_hours: number | null
@@ -74,8 +78,9 @@ type VerificationRow = {
 
 type PeerConfirmationRow = {
   id: string
-  verification_id: string
-  confirmer_id: string
+  confirmer_volunteer_id: string
+  confirmed_volunteer_id: string
+  opportunity_id: string
   confirmed_at: string
 }
 
@@ -182,7 +187,11 @@ type VerificationInsert = {
   registration_id: string
   checkin_time?: string | null
   checkout_time?: string | null
+  checkin_location?: string | null
+  checkout_location?: string | null
   photo_url?: string | null
+  photo_location?: string | null
+  qr_payload?: string | null
   peer_confirms?: number
   verification_level?: string
   verified_hours?: number | null
@@ -193,8 +202,9 @@ type VerificationInsert = {
 
 type PeerConfirmationInsert = {
   id?: string
-  verification_id: string
-  confirmer_id: string
+  confirmer_volunteer_id: string
+  confirmed_volunteer_id: string
+  opportunity_id: string
   confirmed_at?: string
 }
 
@@ -285,7 +295,12 @@ export type Database = {
         Relationships: []
       }
     }
-    Functions: Record<string, never>
+    Functions: {
+      increment_peer_confirms: {
+        Args: { p_volunteer_id: string; p_opportunity_id: string }
+        Returns: undefined
+      }
+    }
     Enums: Record<string, never>
   }
 }

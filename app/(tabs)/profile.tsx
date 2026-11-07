@@ -3,6 +3,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
+import { useRouter } from 'expo-router'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { LevelBadge } from '@/components/gamification/LevelBadge'
 import { StreakFlame } from '@/components/gamification/StreakFlame'
@@ -104,6 +105,7 @@ function Chip({
 export default function ProfileScreen() {
   const volunteer = useAuthStore(selectVolunteer)
   const setVolunteer = useAuthStore((s) => s.setVolunteer)
+  const router = useRouter()
 
   const {
     control,
@@ -454,6 +456,19 @@ export default function ProfileScreen() {
           variant="danger"
           onPress={handleSignOut}
         />
+
+        {/* Demo Mode link — visible only in development */}
+        {__DEV__ && (
+          <TouchableOpacity
+            onPress={() => router.push('/demo')}
+            activeOpacity={0.7}
+            style={{ marginTop: 20, alignItems: 'center', paddingVertical: 8 }}
+          >
+            <Text style={{ color: COLORS.muted, fontSize: 12, textDecorationLine: 'underline' }}>
+              Demo Mode
+            </Text>
+          </TouchableOpacity>
+        )}
       </ScrollView>
     </SafeAreaView>
   )

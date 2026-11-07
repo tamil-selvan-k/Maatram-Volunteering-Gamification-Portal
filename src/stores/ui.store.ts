@@ -11,11 +11,13 @@ interface UIState {
   searchQuery: string
   leaderboardPeriod: 'month' | 'quarter' | 'all'
   levelUpModal: LevelUpModalState
+  needsOnboarding: boolean
   setOpportunityFilter: (filter: string) => void
   setSearchQuery: (q: string) => void
   setLeaderboardPeriod: (p: 'month' | 'quarter' | 'all') => void
   showLevelUp: (levelName: string, levelNumber: number) => void
   dismissLevelUp: () => void
+  setNeedsOnboarding: (value: boolean) => void
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -23,6 +25,7 @@ export const useUIStore = create<UIState>((set) => ({
   searchQuery: '',
   leaderboardPeriod: 'month',
   levelUpModal: { show: false, levelName: '', levelNumber: 1 },
+  needsOnboarding: false,
   setOpportunityFilter: (activeOpportunityFilter) => set({ activeOpportunityFilter }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setLeaderboardPeriod: (leaderboardPeriod) => set({ leaderboardPeriod }),
@@ -30,4 +33,5 @@ export const useUIStore = create<UIState>((set) => ({
     set({ levelUpModal: { show: true, levelName, levelNumber } }),
   dismissLevelUp: () =>
     set({ levelUpModal: { show: false, levelName: '', levelNumber: 1 } }),
+  setNeedsOnboarding: (needsOnboarding) => set({ needsOnboarding }),
 }))

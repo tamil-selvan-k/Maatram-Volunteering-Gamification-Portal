@@ -106,6 +106,16 @@ export default function DashboardScreen() {
           <Text className="text-white font-semibold mb-3">Badges</Text>
           {badgesLoading ? (
             <Skeleton height={80} />
+          ) : earnedBadges.length === 0 ? (
+            <View className="bg-surface border border-border rounded-2xl p-6 items-center">
+              <Text className="text-2xl mb-3">🔒</Text>
+              <Text className="text-white font-semibold text-sm text-center mb-1">
+                No badges yet
+              </Text>
+              <Text className="text-muted text-xs text-center">
+                Complete your first verified event to unlock badges!
+              </Text>
+            </View>
           ) : (
             <BadgeGrid earnedBadgeTypes={earnedBadges} />
           )}

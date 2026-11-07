@@ -74,16 +74,33 @@ export default function HomeScreen() {
 
   if (isLoading) return <HomeSkeleton />
 
+  const visibleOpportunities = (opportunities ?? []).slice(0, 6)
+
   return (
     <SafeAreaView className="flex-1 bg-bg">
       <FlatList
-        data={(opportunities ?? []).slice(0, 6)}
+        data={visibleOpportunities}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         getItemLayout={getItemLayout}
         ListHeaderComponent={ListHeader}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          <View className="flex-1 items-center justify-center py-16 px-4">
+            <View
+              className="w-16 h-16 rounded-full bg-surface border border-border items-center justify-center mb-4"
+            >
+              <Text className="text-2xl">📅</Text>
+            </View>
+            <Text className="text-white font-semibold text-base text-center mb-2">
+              No opportunities right now
+            </Text>
+            <Text className="text-muted text-sm text-center">
+              Check back soon! New volunteering events are added regularly.
+            </Text>
+          </View>
+        }
       />
     </SafeAreaView>
   )

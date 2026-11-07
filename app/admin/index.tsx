@@ -409,6 +409,55 @@ export default function AdminDashboardScreen() {
         renderItem={({ item }) => (
           <OpportunityRow item={item} onPress={() => handleRowPress(item.id)} />
         )}
+        ListEmptyComponent={
+          !oppsLoading ? (
+            <View
+              style={{
+                alignItems: 'center',
+                justifyContent: 'center',
+                paddingVertical: 48,
+                paddingHorizontal: 24,
+              }}
+            >
+              <View
+                style={{
+                  width: 64,
+                  height: 64,
+                  borderRadius: 32,
+                  backgroundColor: COLORS.surface,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                <Text style={{ fontSize: 28 }}>📋</Text>
+              </View>
+              <Text
+                style={{
+                  color: COLORS.white,
+                  fontWeight: '600',
+                  fontSize: 15,
+                  textAlign: 'center',
+                  marginBottom: 6,
+                }}
+              >
+                No opportunities yet
+              </Text>
+              <Text
+                style={{
+                  color: COLORS.muted,
+                  fontSize: 13,
+                  textAlign: 'center',
+                  lineHeight: 20,
+                }}
+              >
+                Create the first opportunity to get started with volunteer management.
+              </Text>
+            </View>
+          ) : undefined
+        }
         ListFooterComponent={
           oppsResult?.hasMore ? (
             <TouchableOpacity

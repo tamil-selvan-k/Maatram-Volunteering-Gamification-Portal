@@ -104,6 +104,23 @@ export default function LeaderboardScreen() {
         ListHeaderComponent={ListHeader}
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24 }}
         showsVerticalScrollIndicator={false}
+        ListEmptyComponent={
+          top3.length === 0 ? (
+            <View className="flex-1 items-center justify-center py-16 px-4">
+              <View
+                className="w-16 h-16 rounded-full bg-surface border border-border items-center justify-center mb-4"
+              >
+                <Text className="text-2xl">🏆</Text>
+              </View>
+              <Text className="text-white font-semibold text-base text-center mb-2">
+                No rankings yet
+              </Text>
+              <Text className="text-muted text-sm text-center">
+                Be the first to volunteer! Complete a verified activity to appear on the leaderboard.
+              </Text>
+            </View>
+          ) : undefined
+        }
       />
     </SafeAreaView>
   )

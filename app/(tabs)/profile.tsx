@@ -1,5 +1,8 @@
-import { View, Text, ScrollView, Switch, Alert } from 'react-native'
+import { View, Text, ScrollView, Switch, Alert, TextInput, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { z } from 'zod'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { LevelBadge } from '@/components/gamification/LevelBadge'
 import { StreakFlame } from '@/components/gamification/StreakFlame'
@@ -9,9 +12,27 @@ import { updateVolunteerProfile } from '@/services/volunteer.service'
 import { getInitials } from '@/utils'
 import { COLORS } from '@/constants/theme'
 import { ACTIVITY_LABELS } from '@/constants/activities'
-import { useState, useCallback } from 'react'
 import type { ActivityType } from '@/types'
 
+// ─── Schema ───────────────────────────────────────────────────────────────────
+const profileSchema = z.object({
+  full_name:        z.string().min(2, 'Name must be at least 2 characters').max(100),
+  employer_org:     z.string().max(100).optional().or(z.literal('')),
+  skills:           z.array(z.string()),
+  preferences:      z.array(
+    z.enum([
+      'physical_event', 'physical_verification', 'school_visit',
+      'office_bg_work', 'telephone_verification', 'other_small_work',
+    ])
+  ),
+  consent_push:     z.boolean(),
+  consent_email:    z.boolean(),
+  consent_linkedin: z.boolean(),
+})
+
+type ProfileFormValues = z.infer<typeof profileSchema>
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 const ACTIVITY_TYPES: ActivityType[] = [
   'physical_event',
   'physical_verification',
@@ -21,128 +42,381 @@ const ACTIVITY_TYPES: ActivityType[] = [
   'other_small_work',
 ]
 
+const SKILL_OPTIONS: string[] = [
+  'Teaching',
+  'Mentoring',
+  'Healthcare',
+  'Construction',
+  'IT/Tech',
+  'Cooking',
+  'Transport',
+  'Event Management',
+  'Fundraising',
+  'Translation',
+  'Photography',
+  'Music/Arts',
+  'Sports Coaching',
+  'Legal Aid',
+  'Counselling',
+]
+
+// ─── Chip component ───────────────────────────────────────────────────────────
+function Chip({
+  label,
+  selected,
+  onPress,
+}: {
+  label: string
+  selected: boolean
+  onPress: () => void
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{
+        borderRadius: 999,
+        borderWidth: 1,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        marginBottom: 8,
+        marginRight: 8,
+        borderColor: selected ? COLORS.gold : COLORS.border,
+        backgroundColor: selected ? `${COLORS.gold}20` : COLORS.surfaceElevated,
+      }}
+    >
+      <Text
+        style={{
+          fontSize: 12,
+          fontWeight: '600',
+          color: selected ? COLORS.gold : COLORS.muted,
+        }}
+      >
+        {label}
+      </Text>
+    </TouchableOpacity>
+  )
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const volunteer = useAuthStore(selectVolunteer)
   const setVolunteer = useAuthStore((s) => s.setVolunteer)
-  const [saving, setSaving] = useState(false)
-  const [consentPush, setConsentPush] = useState(volunteer?.consent_push ?? true)
-  const [consentEmail, setConsentEmail] = useState(volunteer?.consent_email ?? true)
-  const [consentLinkedin, setConsentLinkedin] = useState(volunteer?.consent_linkedin ?? false)
-  const [prefs, setPrefs] = useState<ActivityType[]>(volunteer?.preferences ?? [])
 
-  const togglePref = useCallback((type: ActivityType) => {
-    setPrefs((prev) =>
-      prev.includes(type) ? prev.filter((p) => p !== type) : [...prev, type]
-    )
-  }, [])
+  const {
+    control,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      full_name:        volunteer?.full_name ?? '',
+      employer_org:     volunteer?.employer_org ?? '',
+      skills:           volunteer?.skills ?? [],
+      preferences:      (volunteer?.preferences ?? []) as ProfileFormValues['preferences'],
+      consent_push:     volunteer?.consent_push ?? true,
+      consent_email:    volunteer?.consent_email ?? true,
+      consent_linkedin: volunteer?.consent_linkedin ?? false,
+    },
+  })
 
-  const handleSave = useCallback(async () => {
+  const onSubmit = async (values: ProfileFormValues) => {
     if (!volunteer) return
-    setSaving(true)
     const result = await updateVolunteerProfile(volunteer.id, {
-      preferences: prefs,
-      consent_push: consentPush,
-      consent_email: consentEmail,
-      consent_linkedin: consentLinkedin,
+      preferences: values.preferences,
+      skills: values.skills,
+      consent_push: values.consent_push,
+      consent_email: values.consent_email,
+      consent_linkedin: values.consent_linkedin,
+      employer_org: values.employer_org || null,
     })
-    setSaving(false)
     if (result.error) {
       Alert.alert('Error', result.error.message)
     } else {
       setVolunteer(result.data)
       Alert.alert('Saved', 'Your profile has been updated.')
     }
-  }, [volunteer, prefs, consentPush, consentEmail, consentLinkedin, setVolunteer])
+  }
 
-  const handleSignOut = useCallback(async () => {
+  const handleSignOut = async () => {
     await supabase.auth.signOut()
-  }, [])
+  }
 
   if (!volunteer) return null
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
       <ScrollView
-        className="flex-1"
-        contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Avatar + name */}
-        <View className="items-center mb-6">
+        {/* Avatar + level */}
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
           <View
-            className="w-20 h-20 rounded-full items-center justify-center mb-3"
-            style={{ backgroundColor: COLORS.surfaceElevated, borderWidth: 2, borderColor: COLORS.gold }}
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 12,
+              backgroundColor: COLORS.surfaceElevated,
+              borderWidth: 2,
+              borderColor: COLORS.gold,
+            }}
           >
-            <Text className="text-white font-bold text-2xl">{getInitials(volunteer.full_name)}</Text>
+            <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 24 }}>
+              {getInitials(volunteer.full_name)}
+            </Text>
           </View>
-          <Text className="text-white font-bold text-xl">{volunteer.full_name}</Text>
-          <Text className="text-muted text-sm mb-2">{volunteer.email}</Text>
-          <View className="flex-row gap-2">
+          <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 20, marginBottom: 2 }}>
+            {volunteer.full_name}
+          </Text>
+          <Text style={{ color: COLORS.muted, fontSize: 13, marginBottom: 10 }}>
+            {volunteer.email}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
             <LevelBadge points={volunteer.total_points} />
             <StreakFlame months={volunteer.streak_months} showLabel />
           </View>
         </View>
 
         {/* Stats */}
-        <View className="flex-row gap-3 mb-6">
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
           {[
-            { label: 'Points',   value: volunteer.total_points.toLocaleString() },
-            { label: 'Events',   value: String(volunteer.times_completed) },
+            { label: 'Points', value: volunteer.total_points.toLocaleString() },
+            { label: 'Events', value: String(volunteer.times_completed) },
           ].map((s) => (
-            <View key={s.label} className="flex-1 bg-surface border border-border rounded-2xl p-4 items-center">
-              <Text className="text-gold font-bold text-xl">{s.value}</Text>
-              <Text className="text-muted text-xs mt-0.5">{s.label}</Text>
+            <View
+              key={s.label}
+              style={{
+                flex: 1,
+                backgroundColor: COLORS.surface,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                borderRadius: 16,
+                padding: 16,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 20 }}>
+                {s.value}
+              </Text>
+              <Text style={{ color: COLORS.muted, fontSize: 12, marginTop: 2 }}>
+                {s.label}
+              </Text>
             </View>
           ))}
         </View>
 
+        {/* Full name */}
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600', marginBottom: 10 }}>
+            Full Name
+          </Text>
+          <Controller
+            control={control}
+            name="full_name"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <TextInput
+                value={value}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="Your full name"
+                placeholderTextColor={COLORS.muted}
+                style={{
+                  color: COLORS.white,
+                  backgroundColor: COLORS.surfaceElevated,
+                  borderRadius: 10,
+                  padding: 12,
+                  fontSize: 15,
+                  borderWidth: 1,
+                  borderColor: errors.full_name ? COLORS.error : COLORS.border,
+                }}
+              />
+            )}
+          />
+          {errors.full_name && (
+            <Text style={{ color: COLORS.error, fontSize: 12, marginTop: 4 }}>
+              {errors.full_name.message}
+            </Text>
+          )}
+        </View>
+
+        {/* Employer / org */}
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600', marginBottom: 10 }}>
+            Employer / Organisation
+          </Text>
+          <Controller
+            control={control}
+            name="employer_org"
+            render={({ field: { onChange, value, onBlur } }) => (
+              <TextInput
+                value={value ?? ''}
+                onChangeText={onChange}
+                onBlur={onBlur}
+                placeholder="Optional"
+                placeholderTextColor={COLORS.muted}
+                style={{
+                  color: COLORS.white,
+                  backgroundColor: COLORS.surfaceElevated,
+                  borderRadius: 10,
+                  padding: 12,
+                  fontSize: 15,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                }}
+              />
+            )}
+          />
+        </View>
+
+        {/* Skills multi-select */}
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600', marginBottom: 12 }}>
+            Skills
+          </Text>
+          <Controller
+            control={control}
+            name="skills"
+            render={({ field: { onChange, value } }) => (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {SKILL_OPTIONS.map((skill) => (
+                  <Chip
+                    key={skill}
+                    label={skill}
+                    selected={value.includes(skill)}
+                    onPress={() => {
+                      onChange(
+                        value.includes(skill)
+                          ? value.filter((s) => s !== skill)
+                          : [...value, skill]
+                      )
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          />
+        </View>
+
         {/* Activity preferences */}
-        <View className="bg-surface border border-border rounded-2xl p-4 mb-4">
-          <Text className="text-white font-semibold mb-3">Preferred activities</Text>
-          <View className="flex-row flex-wrap gap-2">
-            {ACTIVITY_TYPES.map((type) => {
-              const selected = prefs.includes(type)
-              return (
-                <View
-                  key={type}
-                  onTouchEnd={() => togglePref(type)}
-                  className={`rounded-full border px-3 py-1.5 ${
-                    selected ? 'bg-gold/15 border-gold/50' : 'bg-surface-elevated border-border'
-                  }`}
-                >
-                  <Text className={`text-xs font-semibold ${selected ? 'text-gold' : 'text-muted'}`}>
-                    {ACTIVITY_LABELS[type]}
-                  </Text>
-                </View>
-              )
-            })}
-          </View>
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 12,
+          }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600', marginBottom: 12 }}>
+            Preferred activities
+          </Text>
+          {errors.preferences && (
+            <Text style={{ color: COLORS.error, fontSize: 12, marginBottom: 8 }}>
+              {errors.preferences.message}
+            </Text>
+          )}
+          <Controller
+            control={control}
+            name="preferences"
+            render={({ field: { onChange, value } }) => (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                {ACTIVITY_TYPES.map((type) => (
+                  <Chip
+                    key={type}
+                    label={ACTIVITY_LABELS[type]}
+                    selected={value.includes(type)}
+                    onPress={() => {
+                      onChange(
+                        value.includes(type)
+                          ? value.filter((p) => p !== type)
+                          : [...value, type]
+                      )
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+          />
         </View>
 
         {/* Consent toggles */}
-        <View className="bg-surface border border-border rounded-2xl p-4 mb-4 gap-3">
-          <Text className="text-white font-semibold">Communication</Text>
-          {[
-            { label: 'Push notifications',   value: consentPush,     setter: setConsentPush },
-            { label: 'Email updates',         value: consentEmail,    setter: setConsentEmail },
-            { label: 'LinkedIn certificate',  value: consentLinkedin, setter: setConsentLinkedin },
-          ].map((item) => (
-            <View key={item.label} className="flex-row items-center justify-between">
-              <Text className="text-muted text-sm">{item.label}</Text>
-              <Switch
-                value={item.value}
-                onValueChange={item.setter}
-                trackColor={{ false: '#2A2A30', true: '#F5B800' }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
+        <View
+          style={{
+            backgroundColor: COLORS.surface,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 20,
+            gap: 12,
+          }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600' }}>Communication</Text>
+          {(
+            [
+              { name: 'consent_push',     label: 'Push notifications' },
+              { name: 'consent_email',    label: 'Email updates' },
+              { name: 'consent_linkedin', label: 'LinkedIn badge sharing' },
+            ] as const
+          ).map((item) => (
+            <Controller
+              key={item.name}
+              control={control}
+              name={item.name}
+              render={({ field: { onChange, value } }) => (
+                <View
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                >
+                  <Text style={{ color: COLORS.muted, fontSize: 14 }}>{item.label}</Text>
+                  <Switch
+                    value={value}
+                    onValueChange={onChange}
+                    trackColor={{ false: COLORS.border, true: COLORS.gold }}
+                    thumbColor={COLORS.white}
+                  />
+                </View>
+              )}
+            />
           ))}
         </View>
 
         <Button
           title="Save Changes"
-          loading={saving}
-          onPress={handleSave}
+          loading={isSubmitting}
+          onPress={() => { void handleSubmit(onSubmit)() }}
           className="mb-3"
         />
         <Button

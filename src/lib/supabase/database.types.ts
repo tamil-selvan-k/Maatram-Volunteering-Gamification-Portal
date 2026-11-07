@@ -235,6 +235,22 @@ type NotificationInsert = {
   created_at?: string
 }
 
+type PushTokenRow = {
+  id: string
+  volunteer_id: string
+  token: string
+  created_at: string
+  updated_at: string
+}
+
+type PushTokenInsert = {
+  id?: string
+  volunteer_id: string
+  token: string
+  created_at?: string
+  updated_at?: string
+}
+
 // ─── Database type (matches @supabase/postgrest-js GenericTable / GenericSchema) ─
 
 export type Database = {
@@ -286,6 +302,12 @@ export type Database = {
         Row: NotificationRow
         Insert: NotificationInsert
         Update: Partial<NotificationRow>
+        Relationships: []
+      }
+      push_tokens: {
+        Row: PushTokenRow
+        Insert: PushTokenInsert
+        Update: Partial<PushTokenRow>
         Relationships: []
       }
     }

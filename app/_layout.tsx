@@ -1,11 +1,11 @@
 import '../global.css'
-import { useEffect } from 'react'
 import { Stack } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClient } from '@/lib/query-client'
 import { useAuthListener } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/auth.store'
+import { LevelUpModal } from '@/components/gamification/LevelUpModal'
 
 function RootLayoutNav() {
   useAuthListener()
@@ -14,18 +14,21 @@ function RootLayoutNav() {
   if (isLoading) return null
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#0D0D0F' },
-        animation: 'fade',
-      }}
-    >
-      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="admin" options={{ headerShown: false }} />
-      <Stack.Screen name="event" options={{ headerShown: false }} />
-    </Stack>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#0D0D0F' },
+          animation: 'fade',
+        }}
+      >
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="admin" options={{ headerShown: false }} />
+        <Stack.Screen name="event" options={{ headerShown: false }} />
+      </Stack>
+      <LevelUpModal />
+    </>
   )
 }
 

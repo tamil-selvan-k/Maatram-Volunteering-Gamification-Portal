@@ -3,6 +3,13 @@ import { useRouter } from 'expo-router'
 import { supabase } from '@/lib/supabase/client'
 import { getVolunteerById } from '@/services/volunteer.service'
 import { useAuthStore } from '@/stores/auth.store'
+import { requestPushPermission, savePushToken } from '@/lib/notifications'
+
+async function registerPushTokenForVolunteer(volunteerId: string): Promise<void> {
+  const result = await requestPushPermission()
+  if (result.error || !result.data) return
+  await savePushToken(volunteerId, result.data)
+}
 
 export function useAuthListener() {
   const { setVolunteer, setLoading } = useAuthStore()
@@ -13,6 +20,11 @@ export function useAuthListener() {
       if (data.session?.user) {
         const result = await getVolunteerById(data.session.user.id)
         setVolunteer(result.data)
+
+        // Register push token if consent given
+        if (result.data?.consent_push) {
+          void registerPushTokenForVolunteer(result.data.id)
+        }
       }
       setLoading(false)
     })
@@ -28,6 +40,11 @@ export function useAuthListener() {
       if (session?.user) {
         const result = await getVolunteerById(session.user.id)
         setVolunteer(result.data)
+
+        // Register push token if consent given
+        if (result.data?.consent_push) {
+          void registerPushTokenForVolunteer(result.data.id)
+        }
       }
     })
 

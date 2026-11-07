@@ -7,8 +7,10 @@ import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { LevelBadge } from '@/components/gamification/LevelBadge'
 import { StreakFlame } from '@/components/gamification/StreakFlame'
 import { Button } from '@/components/ui/Button'
+import { ImpactSummary } from '@/components/profile/ImpactSummary'
 import { supabase } from '@/lib/supabase/client'
 import { updateVolunteerProfile } from '@/services/volunteer.service'
+import { canShareToLinkedIn, shareToLinkedIn } from '@/lib/linkedin'
 import { getInitials } from '@/utils'
 import { COLORS } from '@/constants/theme'
 import { ACTIVITY_LABELS } from '@/constants/activities'
@@ -151,6 +153,9 @@ export default function ProfileScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
+        {/* Impact summary */}
+        <ImpactSummary volunteerId={volunteer.id} totalPoints={volunteer.total_points} />
+
         {/* Avatar + level */}
         <View style={{ alignItems: 'center', marginBottom: 24 }}>
           <View
@@ -419,6 +424,31 @@ export default function ProfileScreen() {
           onPress={() => { void handleSubmit(onSubmit)() }}
           className="mb-3"
         />
+
+        {/* LinkedIn share button */}
+        {canShareToLinkedIn(volunteer) && (
+          <TouchableOpacity
+            onPress={() => { void shareToLinkedIn(volunteer) }}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              borderWidth: 1,
+              borderColor: COLORS.gold,
+              borderRadius: 14,
+              paddingVertical: 14,
+              marginBottom: 12,
+              backgroundColor: `${COLORS.gold}08`,
+            }}
+          >
+            <Text style={{ color: COLORS.gold, fontSize: 14, fontWeight: '700' }}>
+              in  Share on LinkedIn
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <Button
           title="Sign Out"
           variant="danger"

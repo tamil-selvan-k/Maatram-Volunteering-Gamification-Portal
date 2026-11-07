@@ -1,291 +1,443 @@
-import { View, Text, ScrollView, Alert } from 'react-native'
-import { useRouter } from 'expo-router'
-import { useForm, Controller, type Resolver } from 'react-hook-form'
-import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
+import React, { useState, useCallback, memo } from 'react'
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Modal,
+  ScrollView,
+  Alert,
+  ActivityIndicator,
+} from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Input } from '@/components/ui/Input'
-import { Button } from '@/components/ui/Button'
-import { useAuthStore, selectIsAdmin } from '@/stores/auth.store'
-import { supabase } from '@/lib/supabase/client'
-import { toAppError } from '@/lib/errors'
-import type { ActivityType } from '@/types'
+import { useRouter } from 'expo-router'
+import * as Clipboard from 'expo-clipboard'
+import { COLORS } from '@/constants/theme'
+import { useAdminStats, useAdminOpportunities, useActivityReport } from '@/hooks/useAdmin'
+import type { AdminOpportunityRow } from '@/services/admin.service'
+import { formatEventDate } from '@/utils'
 
-const ACTIVITY_TYPES: ActivityType[] = [
-  'physical_event',
-  'physical_verification',
-  'school_visit',
-  'office_bg_work',
-  'telephone_verification',
-  'other_small_work',
-]
+// ─── Stat card ────────────────────────────────────────────────────────────────
 
-const createOpportunitySchema = z.object({
-  title:                 z.string().min(5, 'Title must be at least 5 characters').max(200),
-  description:           z.string().max(1000).optional(),
-  activity_type:         z.enum(['physical_event', 'physical_verification', 'school_visit', 'office_bg_work', 'telephone_verification', 'other_small_work']),
-  mode:                  z.enum(['online', 'offline']),
-  location:              z.string().max(200).optional(),
-  event_date:            z.string().min(1, 'Event date required'),
-  duration_hours:        z.coerce.number().min(0.5).max(24),
-  total_slots:           z.coerce.number().min(1).max(200),
-  registration_deadline: z.string().min(1, 'Registration deadline required'),
+function StatCard({ label, value }: { label: string; value: string | number }) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 16,
+        padding: 14,
+        alignItems: 'center',
+      }}
+    >
+      <Text style={{ color: COLORS.gold, fontWeight: '800', fontSize: 22 }}>{value}</Text>
+      <Text
+        style={{ color: COLORS.muted, fontSize: 11, marginTop: 3, textAlign: 'center' }}
+        numberOfLines={2}
+      >
+        {label}
+      </Text>
+    </View>
+  )
+}
+
+// ─── Status badge ─────────────────────────────────────────────────────────────
+
+const STATUS_COLORS: Record<string, string> = {
+  open:                 COLORS.success,
+  registration_closed:  COLORS.warning,
+  allocated:            '#8B5CF6',
+  in_progress:          COLORS.gold,
+  completed:            COLORS.muted,
+  cancelled:            COLORS.error,
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const color = STATUS_COLORS[status] ?? COLORS.muted
+  return (
+    <View
+      style={{
+        borderRadius: 999,
+        paddingHorizontal: 8,
+        paddingVertical: 3,
+        backgroundColor: `${color}20`,
+        borderWidth: 1,
+        borderColor: `${color}50`,
+      }}
+    >
+      <Text style={{ color, fontSize: 10, fontWeight: '700' }}>
+        {status.replace(/_/g, ' ').toUpperCase()}
+      </Text>
+    </View>
+  )
+}
+
+// ─── Opportunity row ──────────────────────────────────────────────────────────
+
+const OpportunityRow = memo(function OpportunityRow({
+  item,
+  onPress,
+}: {
+  item: AdminOpportunityRow
+  onPress: () => void
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.7}
+      style={{
+        backgroundColor: COLORS.surface,
+        borderWidth: 1,
+        borderColor: COLORS.border,
+        borderRadius: 14,
+        padding: 14,
+        marginBottom: 10,
+      }}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1, marginRight: 8 }}>
+          <Text
+            style={{ color: COLORS.white, fontWeight: '600', fontSize: 14, marginBottom: 4 }}
+            numberOfLines={1}
+          >
+            {item.title}
+          </Text>
+          <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 6 }}>
+            {formatEventDate(item.event_date)} · {item.activity_type.replace(/_/g, ' ')}
+          </Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <Text style={{ color: COLORS.muted, fontSize: 11 }}>
+              {item.registrations_count} registered
+            </Text>
+            <Text style={{ color: COLORS.success, fontSize: 11 }}>
+              {item.verified_count} verified
+            </Text>
+          </View>
+        </View>
+        <StatusBadge status={item.status} />
+      </View>
+    </TouchableOpacity>
+  )
 })
 
-type CreateOpportunityValues = z.infer<typeof createOpportunitySchema>
+// ─── Report modal ─────────────────────────────────────────────────────────────
 
-export default function AdminScreen() {
-  const isAdmin = useAuthStore(selectIsAdmin)
-  const volunteer = useAuthStore((s) => s.volunteer)
-  const router = useRouter()
+type ReportPeriod = 'month' | 'quarter' | 'all'
 
-  const {
-    control,
-    handleSubmit,
-    watch,
-    setValue,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateOpportunityValues>({
-    resolver: zodResolver(createOpportunitySchema) as Resolver<CreateOpportunityValues>,
-    defaultValues: {
-      title: '',
-      description: '',
-      activity_type: 'physical_event',
-      mode: 'offline',
-      location: '',
-      event_date: '',
-      duration_hours: 2,
-      total_slots: 10,
-      registration_deadline: '',
-    },
-  })
+function ReportModal({
+  visible,
+  onClose,
+  period,
+  setPeriod,
+}: {
+  visible: boolean
+  onClose: () => void
+  period: ReportPeriod
+  setPeriod: (p: ReportPeriod) => void
+}) {
+  const { data: report, isLoading, refetch } = useActivityReport(period, visible)
 
-  const selectedMode = watch('mode')
-  const selectedType = watch('activity_type')
-
-  async function onSubmit(values: CreateOpportunityValues) {
-    if (!volunteer) return
-    try {
-      const { error } = await supabase.from('opportunities').insert({
-        title:                 values.title,
-        description:           values.description ?? null,
-        activity_type:         values.activity_type,
-        mode:                  values.mode,
-        location:              values.location ?? null,
-        location_lat:          null,
-        location_lng:          null,
-        event_date:            new Date(values.event_date).toISOString(),
-        duration_hours:        values.duration_hours,
-        total_slots:           values.total_slots,
-        registration_deadline: new Date(values.registration_deadline).toISOString(),
-        required_skills:       [],
-        mandatory_skills:      [],
-        status:                'open',
-        created_by:            volunteer.id,
-      })
-
-      if (error) {
-        const appErr = toAppError(error)
-        Alert.alert('Error', appErr.message)
-        return
-      }
-
-      Alert.alert('Created!', 'Opportunity published successfully.', [
-        { text: 'OK', onPress: () => router.replace('/(tabs)/opportunities') },
-      ])
-    } catch (err) {
-      const appErr = toAppError(err)
-      Alert.alert('Error', appErr.message)
-    }
-  }
-
-  if (!isAdmin) {
-    return (
-      <SafeAreaView className="flex-1 bg-bg items-center justify-center">
-        <Text className="text-muted text-base">Admin access required</Text>
-        <Button title="Go Back" variant="ghost" onPress={() => router.back()} className="mt-4" />
-      </SafeAreaView>
-    )
+  const handleCopy = async () => {
+    if (!report) return
+    await Clipboard.setStringAsync(JSON.stringify(report, null, 2))
+    Alert.alert('Copied', 'Report JSON copied to clipboard.')
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-bg">
-      <ScrollView
-        className="flex-1"
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: COLORS.bg }}>
+        {/* Header */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            borderBottomWidth: 1,
+            borderBottomColor: COLORS.border,
+          }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 17 }}>
+            Activity Report
+          </Text>
+          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+            <Text style={{ color: COLORS.gold, fontSize: 15, fontWeight: '600' }}>Done</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Period selector */}
+        <View style={{ flexDirection: 'row', gap: 8, padding: 16, paddingBottom: 0 }}>
+          {(['month', 'quarter', 'all'] as ReportPeriod[]).map((p) => (
+            <TouchableOpacity
+              key={p}
+              onPress={() => {
+                setPeriod(p)
+                void refetch()
+              }}
+              activeOpacity={0.7}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                borderRadius: 10,
+                alignItems: 'center',
+                borderWidth: 1,
+                backgroundColor: period === p ? `${COLORS.gold}20` : COLORS.surface,
+                borderColor: period === p ? `${COLORS.gold}50` : COLORS.border,
+              }}
+            >
+              <Text
+                style={{
+                  color: period === p ? COLORS.gold : COLORS.muted,
+                  fontSize: 13,
+                  fontWeight: '600',
+                  textTransform: 'capitalize',
+                }}
+              >
+                {p}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {isLoading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator color={COLORS.gold} />
+            <Text style={{ color: COLORS.muted, marginTop: 10 }}>Generating report…</Text>
+          </View>
+        ) : !report ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+            <Text style={{ color: COLORS.muted, textAlign: 'center' }}>
+              No data available for this period.
+            </Text>
+          </View>
+        ) : (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16 }}>
+            <View
+              style={{
+                backgroundColor: COLORS.surface,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 12,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+              }}
+            >
+              <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 6 }}>
+                Generated: {new Date(report.generated_at).toLocaleString()}
+              </Text>
+              <Text style={{ color: COLORS.white, fontSize: 13, fontWeight: '600' }}>
+                {report.volunteers.length} active volunteer{report.volunteers.length !== 1 ? 's' : ''}
+              </Text>
+            </View>
+
+            {report.volunteers.map((vol) => (
+              <View
+                key={vol.volunteer_id}
+                style={{
+                  backgroundColor: COLORS.surface,
+                  borderRadius: 12,
+                  padding: 14,
+                  marginBottom: 8,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                }}
+              >
+                <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 14, marginBottom: 2 }}>
+                  {vol.volunteer_name}
+                </Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12, marginBottom: 8 }}>
+                  {vol.volunteer_email}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 16 }}>
+                  <View>
+                    <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 16 }}>
+                      {vol.events_completed}
+                    </Text>
+                    <Text style={{ color: COLORS.muted, fontSize: 11 }}>events</Text>
+                  </View>
+                  <View>
+                    <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 16 }}>
+                      {vol.hours_volunteered}h
+                    </Text>
+                    <Text style={{ color: COLORS.muted, fontSize: 11 }}>hours</Text>
+                  </View>
+                  <View>
+                    <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 16 }}>
+                      {vol.points_earned}
+                    </Text>
+                    <Text style={{ color: COLORS.muted, fontSize: 11 }}>points</Text>
+                  </View>
+                </View>
+                {vol.badges_earned.length > 0 && (
+                  <Text style={{ color: COLORS.muted, fontSize: 11, marginTop: 6 }}>
+                    Badges: {vol.badges_earned.join(', ')}
+                  </Text>
+                )}
+              </View>
+            ))}
+
+            <TouchableOpacity
+              onPress={handleCopy}
+              activeOpacity={0.7}
+              style={{
+                marginTop: 8,
+                padding: 14,
+                borderRadius: 14,
+                borderWidth: 1,
+                borderColor: COLORS.gold,
+                alignItems: 'center',
+                backgroundColor: `${COLORS.gold}10`,
+              }}
+            >
+              <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 15 }}>
+                Copy JSON
+              </Text>
+            </TouchableOpacity>
+          </ScrollView>
+        )}
+      </View>
+    </Modal>
+  )
+}
+
+// ─── Main admin screen ────────────────────────────────────────────────────────
+
+export default function AdminDashboardScreen() {
+  const router = useRouter()
+  const [page, setPage] = useState(1)
+  const [reportVisible, setReportVisible] = useState(false)
+  const [reportPeriod, setReportPeriod] = useState<ReportPeriod>('month')
+
+  const { data: stats, isLoading: statsLoading } = useAdminStats()
+  const { data: oppsResult, isLoading: oppsLoading } = useAdminOpportunities(page)
+
+  const handleRowPress = useCallback(
+    (id: string) => {
+      router.push(`/admin/opportunity/${id}` as never)
+    },
+    [router]
+  )
+
+  const handleLoadMore = () => {
+    if (oppsResult?.hasMore) setPage((p) => p + 1)
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <FlatList
+        data={oppsResult?.items ?? []}
+        keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, paddingBottom: 32 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View className="flex-row items-center justify-between mb-6">
-          <Text className="text-white font-bold text-xl">Create Opportunity</Text>
-          <Button title="Back" variant="ghost" size="sm" onPress={() => router.back()} />
-        </View>
-
-        <View className="gap-4">
-          <Controller
-            control={control}
-            name="title"
-            render={({ field: { onChange, value, onBlur } }) => (
-              <Input
-                label="Title"
-                placeholder="Mock Interview Drive"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.title?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="description"
-            render={({ field: { onChange, value, onBlur } }) => (
-              <Input
-                label="Description (optional)"
-                placeholder="Describe the activity..."
-                multiline
-                numberOfLines={3}
-                value={value ?? ''}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.description?.message}
-              />
-            )}
-          />
-
-          {/* Activity type */}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={
           <View>
-            <Text className="text-sm font-semibold text-white mb-1.5">Activity Type</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {ACTIVITY_TYPES.map((type) => (
-                <View
-                  key={type}
-                  onTouchEnd={() => setValue('activity_type', type)}
-                  className={`px-3 py-1.5 rounded-full border ${
-                    selectedType === type ? 'bg-gold/15 border-gold/50' : 'bg-surface border-border'
-                  }`}
-                >
-                  <Text className={`text-xs font-semibold ${selectedType === type ? 'text-gold' : 'text-muted'}`}>
-                    {type.replace(/_/g, ' ')}
-                  </Text>
-                </View>
-              ))}
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <View>
+                <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 22 }}>
+                  Admin Dashboard
+                </Text>
+                <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
+                  Maatram Foundation
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setReportVisible(true)}
+                activeOpacity={0.7}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: COLORS.gold,
+                  backgroundColor: `${COLORS.gold}15`,
+                }}
+              >
+                <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 13 }}>
+                  Export Report
+                </Text>
+              </TouchableOpacity>
             </View>
-          </View>
 
-          {/* Mode */}
-          <View>
-            <Text className="text-sm font-semibold text-white mb-1.5">Mode</Text>
-            <View className="flex-row gap-2">
-              {(['online', 'offline'] as const).map((m) => (
-                <View
-                  key={m}
-                  onTouchEnd={() => setValue('mode', m)}
-                  className={`flex-1 py-3 rounded-xl border items-center ${
-                    selectedMode === m ? 'bg-gold/15 border-gold/50' : 'bg-surface border-border'
-                  }`}
-                >
-                  <Text className={`text-sm font-semibold capitalize ${selectedMode === m ? 'text-gold' : 'text-muted'}`}>
-                    {m}
-                  </Text>
+            {/* Stats cards */}
+            {statsLoading ? (
+              <ActivityIndicator color={COLORS.gold} style={{ marginBottom: 20 }} />
+            ) : (
+              <View style={{ gap: 10, marginBottom: 24 }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <StatCard
+                    label="Total Volunteers"
+                    value={stats?.totalVolunteers ?? 0}
+                  />
+                  <StatCard
+                    label="Events This Month"
+                    value={stats?.eventsCompletedThisMonth ?? 0}
+                  />
                 </View>
-              ))}
-            </View>
-          </View>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <StatCard
+                    label="Points Awarded (Month)"
+                    value={(stats?.pointsAwardedThisMonth ?? 0).toLocaleString()}
+                  />
+                  <StatCard
+                    label="Avg Reliability"
+                    value={`${stats?.avgReliabilityScore?.toFixed(2) ?? '0.00'}%`}
+                  />
+                </View>
+              </View>
+            )}
 
-          {selectedMode === 'offline' && (
-            <Controller
-              control={control}
-              name="location"
-              render={({ field: { onChange, value, onBlur } }) => (
-                <Input
-                  label="Location"
-                  placeholder="Venue name, area"
-                  value={value ?? ''}
-                  onChangeText={onChange}
-                  onBlur={onBlur}
-                  error={errors.location?.message}
-                />
+            {/* Opportunities heading */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 16 }}>
+                Opportunities
+              </Text>
+              {oppsResult && (
+                <Text style={{ color: COLORS.muted, fontSize: 12 }}>
+                  {oppsResult.total} total
+                </Text>
               )}
-            />
-          )}
-
-          <Controller
-            control={control}
-            name="event_date"
-            render={({ field: { onChange, value, onBlur } }) => (
-              <Input
-                label="Event Date (YYYY-MM-DD HH:MM)"
-                placeholder="2026-12-25 09:00"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.event_date?.message}
-              />
-            )}
-          />
-
-          <Controller
-            control={control}
-            name="registration_deadline"
-            render={({ field: { onChange, value, onBlur } }) => (
-              <Input
-                label="Registration Deadline (YYYY-MM-DD)"
-                placeholder="2026-12-20"
-                value={value}
-                onChangeText={onChange}
-                onBlur={onBlur}
-                error={errors.registration_deadline?.message}
-              />
-            )}
-          />
-
-          <View className="flex-row gap-3">
-            <View className="flex-1">
-              <Controller
-                control={control}
-                name="duration_hours"
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <Input
-                    label="Duration (hours)"
-                    placeholder="2"
-                    keyboardType="numeric"
-                    value={String(value)}
-                    onChangeText={(v) => onChange(parseFloat(v) || 0)}
-                    onBlur={onBlur}
-                    error={errors.duration_hours?.message}
-                  />
-                )}
-              />
             </View>
-            <View className="flex-1">
-              <Controller
-                control={control}
-                name="total_slots"
-                render={({ field: { onChange, value, onBlur } }) => (
-                  <Input
-                    label="Total Slots"
-                    placeholder="10"
-                    keyboardType="numeric"
-                    value={String(value)}
-                    onChangeText={(v) => onChange(parseInt(v, 10) || 0)}
-                    onBlur={onBlur}
-                    error={errors.total_slots?.message}
-                  />
-                )}
-              />
-            </View>
+
+            {oppsLoading && page === 1 && (
+              <ActivityIndicator color={COLORS.gold} style={{ marginVertical: 20 }} />
+            )}
           </View>
+        }
+        renderItem={({ item }) => (
+          <OpportunityRow item={item} onPress={() => handleRowPress(item.id)} />
+        )}
+        ListFooterComponent={
+          oppsResult?.hasMore ? (
+            <TouchableOpacity
+              onPress={handleLoadMore}
+              activeOpacity={0.7}
+              style={{
+                padding: 14,
+                alignItems: 'center',
+                borderRadius: 12,
+                borderWidth: 1,
+                borderColor: COLORS.border,
+                backgroundColor: COLORS.surface,
+                marginTop: 8,
+              }}
+            >
+              <Text style={{ color: COLORS.gold, fontWeight: '600', fontSize: 14 }}>
+                Load More
+              </Text>
+            </TouchableOpacity>
+          ) : undefined
+        }
+      />
 
-          <Button
-            title="Publish Opportunity"
-            size="lg"
-            loading={isSubmitting}
-            onPress={() => { void handleSubmit(onSubmit)() }}
-            className="mt-2"
-          />
-        </View>
-      </ScrollView>
+      <ReportModal
+        visible={reportVisible}
+        onClose={() => setReportVisible(false)}
+        period={reportPeriod}
+        setPeriod={setReportPeriod}
+      />
     </SafeAreaView>
   )
 }

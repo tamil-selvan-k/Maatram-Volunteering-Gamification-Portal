@@ -8,7 +8,7 @@ export type ActivityType =
   | 'telephone_verification'
   | 'other_small_work'
 
-export type VolunteerRole = 'student' | 'alumni' | 'supporter'
+export type VolunteerRole = 'student' | 'alumni' | 'supporter' | 'admin' | 'org_admin'
 
 export type VerificationLevel =
   | 'self_report'

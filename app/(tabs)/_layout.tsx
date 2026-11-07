@@ -1,8 +1,8 @@
 import { Tabs } from 'expo-router'
-import { Home, Search, BarChart2, Trophy, User, Bell } from 'lucide-react-native'
+import { Home, Search, BarChart2, Trophy, User, Bell, ShieldCheck } from 'lucide-react-native'
 import { View, Text } from 'react-native'
 import { COLORS } from '@/constants/theme'
-import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
+import { useAuthStore, selectVolunteer, selectIsAdmin } from '@/stores/auth.store'
 import { useUnreadCount } from '@/hooks/useNotifications'
 
 function NotifIcon({ color, size }: { color: string | undefined; size: number }) {
@@ -39,6 +39,8 @@ function NotifIcon({ color, size }: { color: string | undefined; size: number })
 }
 
 export default function TabsLayout() {
+  const isAdmin = useAuthStore(selectIsAdmin)
+
   return (
     <Tabs
       screenOptions={{
@@ -95,6 +97,14 @@ export default function TabsLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{
+          title: 'Admin',
+          href: isAdmin ? '/admin' : null,
+          tabBarIcon: ({ color, size }) => <ShieldCheck size={size} color={color} />,
         }}
       />
     </Tabs>

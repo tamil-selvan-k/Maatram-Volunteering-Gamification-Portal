@@ -37,5 +37,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
 // Selectors — use these to avoid unnecessary re-renders
 export const selectVolunteer    = (s: AuthState) => s.volunteer
-export const selectIsAdmin      = (s: AuthState) => s.volunteer?.is_admin ?? false
+export const selectIsAdmin      = (s: AuthState) =>
+  (s.volunteer?.is_admin ?? false) ||
+  s.volunteer?.role === 'admin' ||
+  s.volunteer?.role === 'org_admin'
 export const selectTotalPoints  = (s: AuthState) => s.volunteer?.total_points ?? 0

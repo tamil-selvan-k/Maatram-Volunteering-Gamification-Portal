@@ -155,3 +155,73 @@ export async function getActivityHeatmap(volunteerId: string): Promise<Result<Re
     return { data: null, error: toAppError(err) }
   }
 }
+
+export interface VolunteerStats {
+  totalEvents: number
+  totalHours: number
+  totalPoints: number
+  level: number
+}
+
+export async function getVolunteerStats(volunteerId: string): Promise<Result<VolunteerStats>> {
+  try {
+    // Completed verifications (checkout done, hours recorded)
+    const { data: verifications, error: verErr } = await supabase
+      .from('verifications')
+      .select('verified_hours, registration_id')
+      .not('verified_hours', 'is', null)
+
+    if (verErr) return { data: null, error: toAppError(verErr) }
+
+    // We need registrations to filter by volunteer
+    const registrationIds = (verifications as Array<{ verified_hours: number; registration_id: string }>)
+      .map((v) => v.registration_id)
+
+    if (registrationIds.length === 0) {
+      const volRes = await supabase
+        .from('volunteers')
+        .select('total_points, level')
+        .eq('id', volunteerId)
+        .single()
+      if (volRes.error) return { data: null, error: toAppError(volRes.error) }
+      const v = volRes.data as { total_points: number; level: number }
+      return { data: { totalEvents: 0, totalHours: 0, totalPoints: v.total_points, level: v.level }, error: null }
+    }
+
+    const { data: regs, error: regErr } = await supabase
+      .from('registrations')
+      .select('id')
+      .eq('volunteer_id', volunteerId)
+      .in('id', registrationIds)
+
+    if (regErr) return { data: null, error: toAppError(regErr) }
+
+    const myRegIds = new Set((regs as Array<{ id: string }>).map((r) => r.id))
+    const myVerifications = (verifications as Array<{ verified_hours: number; registration_id: string }>)
+      .filter((v) => myRegIds.has(v.registration_id))
+
+    const totalHours = myVerifications.reduce((sum, v) => sum + (v.verified_hours ?? 0), 0)
+    const totalEvents = myVerifications.length
+
+    const { data: vol, error: volErr2 } = await supabase
+      .from('volunteers')
+      .select('total_points, level')
+      .eq('id', volunteerId)
+      .single()
+
+    if (volErr2) return { data: null, error: toAppError(volErr2) }
+    const volData = vol as { total_points: number; level: number }
+
+    return {
+      data: {
+        totalEvents,
+        totalHours: Math.round(totalHours * 10) / 10,
+        totalPoints: volData.total_points,
+        level: volData.level,
+      },
+      error: null,
+    }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}

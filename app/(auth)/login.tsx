@@ -28,7 +28,7 @@ export default function LoginScreen() {
       Alert.alert('Login Failed', error.message)
       return
     }
-    router.replace('/(tabs)/')
+    router.replace('/(tabs)')
   }
 
   return (

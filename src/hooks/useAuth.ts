@@ -36,6 +36,8 @@ export function useAuthListener() {
         }
       }
       setLoading(false)
+    }).catch(() => {
+      setLoading(false)
     })
 
     const {

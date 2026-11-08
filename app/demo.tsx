@@ -30,7 +30,7 @@ export default function DemoScreen() {
       title: 'Browse opportunities',
       description:
         'See upcoming volunteering events near you. Filter by activity type and register for free.',
-      action: () => router.push('/(tabs)/'),
+      action: () => router.push('/(tabs)'),
     },
     {
       title: 'Check in with QR code',

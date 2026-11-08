@@ -75,7 +75,7 @@ export default function OnboardingScreen() {
       return
     }
 
-    router.replace('/(tabs)/')
+    router.replace('/(tabs)')
   }
 
   return (

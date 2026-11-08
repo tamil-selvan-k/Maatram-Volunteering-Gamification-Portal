@@ -1,5 +1,26 @@
 {
   "enabledPlugins": {
     "expo@claude-plugins-official": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Write(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Agent(*)",
+      "WebFetch(*)",
+      "TodoWrite(*)",
+      "ToolSearch(*)",
+      "Skill(*)",
+      "ReportFindings(*)",
+      "AskUserQuestion(*)",
+      "ListAgents(*)",
+      "SendMessage(*)",
+      "Monitor(*)",
+      "NotebookEdit(*)",
+      "Workflow(*)",
+      "mcp__claude-vscode__getDiagnostics(*)"
+    ]
   }
 }

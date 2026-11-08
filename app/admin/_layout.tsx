@@ -11,7 +11,7 @@ export default function AdminLayout() {
 
   useEffect(() => {
     if (!isLoading && !isAdmin) {
-      router.replace('/(tabs)/')
+      router.replace('/(tabs)')
     }
   }, [isLoading, isAdmin, router])
 

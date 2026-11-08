@@ -6,14 +6,16 @@ import type { Result } from '@/types'
 import type { Opportunity } from '@/types'
 
 // Configure how notifications appear when app is in foreground
-ExpoNotifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowList: true,
-  }),
-})
+if (Platform.OS !== 'web') {
+  ExpoNotifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowBanner: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowList: true,
+    }),
+  })
+}
 
 export async function requestPushPermission(): Promise<Result<string>> {
   try {

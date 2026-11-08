@@ -1,5 +1,6 @@
 import '../global.css'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import { View, ActivityIndicator } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -16,6 +17,12 @@ function RootLayoutNav() {
   const volunteer = useAuthStore((s) => s.volunteer)
   const needsOnboarding = useUIStore((s) => s.needsOnboarding)
   const router = useRouter()
+  const [timedOut, setTimedOut] = useState(false)
+
+  useEffect(() => {
+    const timer = setTimeout(() => setTimedOut(true), 5000)
+    return () => clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (!isLoading && volunteer && needsOnboarding) {
@@ -23,7 +30,13 @@ function RootLayoutNav() {
     }
   }, [isLoading, volunteer, needsOnboarding, router])
 
-  if (isLoading) return null
+  if (isLoading && !timedOut) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#0D0D0F', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#F5A623" />
+      </View>
+    )
+  }
 
   return (
     <>

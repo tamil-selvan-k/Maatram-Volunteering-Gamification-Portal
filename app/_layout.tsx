@@ -25,10 +25,14 @@ function RootLayoutNav() {
   }, [])
 
   useEffect(() => {
-    if (!isLoading && volunteer && needsOnboarding) {
+    if (isLoading && !timedOut) return
+
+    if (!volunteer) {
+      router.replace('/(auth)/login')
+    } else if (needsOnboarding) {
       router.replace('/(auth)/onboarding')
     }
-  }, [isLoading, volunteer, needsOnboarding, router])
+  }, [isLoading, timedOut, volunteer, needsOnboarding, router])
 
   if (isLoading && !timedOut) {
     return (
@@ -47,6 +51,7 @@ function RootLayoutNav() {
           animation: 'fade',
         }}
       >
+        <Stack.Screen name="index" options={{ headerShown: false }} />
         <Stack.Screen name="(auth)" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="admin" options={{ headerShown: false }} />

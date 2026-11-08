@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Alert } from 'react-native'
+import { useState } from 'react'
+import { View, Text, ScrollView, Platform } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -10,6 +11,7 @@ import { supabase } from '@/lib/supabase/client'
 
 export default function LoginScreen() {
   const router = useRouter()
+  const [loginError, setLoginError] = useState<string | null>(null)
   const {
     control,
     handleSubmit,
@@ -20,15 +22,20 @@ export default function LoginScreen() {
   })
 
   async function onSubmit(values: LoginFormValues) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    })
-    if (error) {
-      Alert.alert('Login Failed', error.message)
-      return
+    setLoginError(null)
+    try {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: values.email,
+        password: values.password,
+      })
+      if (error) {
+        setLoginError(error.message)
+        return
+      }
+      router.replace('/(tabs)')
+    } catch (e) {
+      setLoginError('Network error. Please try again.')
     }
-    router.replace('/(tabs)')
   }
 
   return (
@@ -43,6 +50,12 @@ export default function LoginScreen() {
           <Text className="text-white font-bold text-xl">Welcome back</Text>
           <Text className="text-muted text-sm mt-1">Sign in to continue volunteering</Text>
         </View>
+
+        {loginError && (
+          <View style={{ backgroundColor: '#7f1d1d', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <Text style={{ color: '#fca5a5', fontSize: 14 }}>{loginError}</Text>
+          </View>
+        )}
 
         <View className="gap-4">
           <Controller

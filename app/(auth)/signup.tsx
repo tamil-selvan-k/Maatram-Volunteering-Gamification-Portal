@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Alert } from 'react-native'
+import { useState } from 'react'
+import { View, Text, ScrollView, Pressable } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -16,6 +17,7 @@ const ROLE_OPTIONS: { label: string; value: SignupFormValues['role'] }[] = [
 
 export default function SignupScreen() {
   const router = useRouter()
+  const [signupError, setSignupError] = useState<string | null>(null)
   const {
     control,
     handleSubmit,
@@ -38,23 +40,28 @@ export default function SignupScreen() {
   const selectedRole = watch('role')
 
   async function onSubmit(values: SignupFormValues) {
-    const { error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        data: {
-          full_name: values.full_name,
-          phone: values.phone ?? null,
-          role: values.role,
-          employer_org: values.employer_org ?? null,
+    setSignupError(null)
+    try {
+      const { error } = await supabase.auth.signUp({
+        email: values.email,
+        password: values.password,
+        options: {
+          data: {
+            full_name: values.full_name,
+            phone: values.phone ?? null,
+            role: values.role,
+            employer_org: values.employer_org ?? null,
+          },
         },
-      },
-    })
-    if (error) {
-      Alert.alert('Sign Up Failed', error.message)
-      return
+      })
+      if (error) {
+        setSignupError(error.message)
+        return
+      }
+      router.replace('/(auth)/onboarding')
+    } catch (e) {
+      setSignupError('Network error. Please try again.')
     }
-    router.replace('/(auth)/onboarding')
   }
 
   return (
@@ -68,6 +75,12 @@ export default function SignupScreen() {
           <Text className="text-white font-bold text-2xl mb-1">Create Account</Text>
           <Text className="text-muted text-sm">Join Maatram's volunteer community</Text>
         </View>
+
+        {signupError && (
+          <View style={{ backgroundColor: '#7f1d1d', borderRadius: 8, padding: 12, marginBottom: 16 }}>
+            <Text style={{ color: '#fca5a5', fontSize: 14 }}>{signupError}</Text>
+          </View>
+        )}
 
         <View className="gap-4">
           <Controller
@@ -157,14 +170,14 @@ export default function SignupScreen() {
             <Text className="text-sm font-semibold text-white">Role</Text>
             <View className="flex-row gap-2">
               {ROLE_OPTIONS.map((opt) => (
-                <View
+                <Pressable
                   key={opt.value}
                   className={`flex-1 py-3 rounded-xl border items-center ${
                     selectedRole === opt.value
                       ? 'bg-gold/15 border-gold/50'
                       : 'bg-surface border-border'
                   }`}
-                  onTouchEnd={() => setValue('role', opt.value)}
+                  onPress={() => setValue('role', opt.value)}
                 >
                   <Text
                     className={`text-sm font-semibold ${
@@ -173,7 +186,7 @@ export default function SignupScreen() {
                   >
                     {opt.label}
                   </Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           </View>

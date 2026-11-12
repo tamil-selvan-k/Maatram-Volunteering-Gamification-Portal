@@ -251,6 +251,24 @@ type PushTokenInsert = {
   updated_at?: string
 }
 
+type ActivityTypeTableRow = {
+  id: string
+  key: string
+  label: string
+  accent: string
+  is_active: boolean
+  created_at: string
+}
+
+type ActivityTypeTableInsert = {
+  id?: string
+  key: string
+  label: string
+  accent?: string
+  is_active?: boolean
+  created_at?: string
+}
+
 // ─── Database type (matches @supabase/postgrest-js GenericTable / GenericSchema) ─
 
 export type Database = {
@@ -308,6 +326,12 @@ export type Database = {
         Row: PushTokenRow
         Insert: PushTokenInsert
         Update: Partial<PushTokenRow>
+        Relationships: []
+      }
+      activity_types: {
+        Row: ActivityTypeTableRow
+        Insert: ActivityTypeTableInsert
+        Update: Partial<ActivityTypeTableRow>
         Relationships: []
       }
     }

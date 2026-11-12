@@ -4,10 +4,12 @@ import { useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { Mail, RefreshCw, ArrowLeft } from 'lucide-react-native'
 import { signupSchema, type SignupFormValues } from '@/schemas/auth.schema'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { supabase } from '@/lib/supabase/client'
+import { COLORS } from '@/constants/theme'
 
 const ROLE_OPTIONS: { label: string; value: SignupFormValues['role'] }[] = [
   { label: 'Student', value: 'student' },
@@ -15,9 +17,135 @@ const ROLE_OPTIONS: { label: string; value: SignupFormValues['role'] }[] = [
   { label: 'Supporter', value: 'supporter' },
 ]
 
+// ─── Verify-email screen ──────────────────────────────────────────────────────
+
+function VerifyEmailScreen({
+  email,
+  onBackToLogin,
+}: {
+  email: string
+  onBackToLogin: () => void
+}) {
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  async function handleResend() {
+    setResendState('sending')
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    setResendState(error ? 'error' : 'sent')
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: 24 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Icon */}
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: `${COLORS.gold}18`,
+              borderWidth: 1,
+              borderColor: `${COLORS.gold}40`,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Mail size={36} color={COLORS.gold} />
+          </View>
+        </View>
+
+        {/* Heading */}
+        <Text
+          style={{ color: COLORS.white, fontWeight: '700', fontSize: 24, textAlign: 'center', marginBottom: 8 }}
+        >
+          Check your inbox
+        </Text>
+        <Text
+          style={{ color: COLORS.muted, fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 6 }}
+        >
+          We sent a verification link to
+        </Text>
+        <Text
+          style={{ color: COLORS.white, fontWeight: '600', fontSize: 15, textAlign: 'center', marginBottom: 24 }}
+        >
+          {email}
+        </Text>
+        <Text
+          style={{
+            color: COLORS.muted,
+            fontSize: 13,
+            textAlign: 'center',
+            lineHeight: 20,
+            marginBottom: 36,
+            paddingHorizontal: 8,
+          }}
+        >
+          Click the link in the email to activate your account. The link expires in 24 hours.
+          {'\n\n'}
+          If you don't see it, check your spam folder.
+        </Text>
+
+        {/* Resend */}
+        {resendState === 'sent' ? (
+          <View
+            style={{
+              backgroundColor: '#14532d',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 16,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#86efac', fontSize: 14 }}>Verification email resent!</Text>
+          </View>
+        ) : resendState === 'error' ? (
+          <View
+            style={{
+              backgroundColor: '#7f1d1d',
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 16,
+              alignItems: 'center',
+            }}
+          >
+            <Text style={{ color: '#fca5a5', fontSize: 14 }}>
+              Could not resend. Please try again in a moment.
+            </Text>
+          </View>
+        ) : null}
+
+        <Button
+          title={resendState === 'sending' ? 'Sending…' : 'Resend verification email'}
+          variant="secondary"
+          loading={resendState === 'sending'}
+          icon={<RefreshCw size={15} color={COLORS.white} />}
+          onPress={handleResend}
+          className="mb-4"
+        />
+
+        <Pressable
+          onPress={onBackToLogin}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 12 }}
+        >
+          <ArrowLeft size={14} color={COLORS.gold} />
+          <Text style={{ color: COLORS.gold, fontSize: 14, fontWeight: '600' }}>Back to Sign In</Text>
+        </Pressable>
+      </ScrollView>
+    </SafeAreaView>
+  )
+}
+
+// ─── Signup screen ────────────────────────────────────────────────────────────
+
 export default function SignupScreen() {
   const router = useRouter()
   const [signupError, setSignupError] = useState<string | null>(null)
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null)
+
   const {
     control,
     handleSubmit,
@@ -42,7 +170,7 @@ export default function SignupScreen() {
   async function onSubmit(values: SignupFormValues) {
     setSignupError(null)
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
@@ -58,10 +186,25 @@ export default function SignupScreen() {
         setSignupError(error.message)
         return
       }
+      // session is null when Supabase requires email confirmation
+      if (data.session === null) {
+        setPendingEmail(values.email)
+        return
+      }
+      // Email confirmation disabled — session is live, go straight to onboarding
       router.replace('/(auth)/onboarding')
-    } catch (e) {
+    } catch {
       setSignupError('Network error. Please try again.')
     }
+  }
+
+  if (pendingEmail) {
+    return (
+      <VerifyEmailScreen
+        email={pendingEmail}
+        onBackToLogin={() => router.replace('/(auth)/login')}
+      />
+    )
   }
 
   return (

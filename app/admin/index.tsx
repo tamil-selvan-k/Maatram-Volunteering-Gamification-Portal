@@ -12,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
+import { ChevronLeft, Plus, Camera, Users, Tag } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
 import { useAdminStats, useAdminOpportunities, useActivityReport } from '@/hooks/useAdmin'
 import type { AdminOpportunityRow } from '@/services/admin.service'
@@ -335,13 +336,31 @@ export default function AdminDashboardScreen() {
           <View>
             {/* Header */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <View>
-                <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 22 }}>
-                  Admin Dashboard
-                </Text>
-                <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
-                  Maatram Foundation
-                </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => router.replace('/(tabs)')}
+                  activeOpacity={0.7}
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 10,
+                    backgroundColor: COLORS.surface,
+                    borderWidth: 1,
+                    borderColor: COLORS.border,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <ChevronLeft size={20} color={COLORS.white} />
+                </TouchableOpacity>
+                <View>
+                  <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 22 }}>
+                    Admin Dashboard
+                  </Text>
+                  <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
+                    Maatram Foundation
+                  </Text>
+                </View>
               </View>
               <TouchableOpacity
                 onPress={() => setReportVisible(true)}
@@ -357,6 +376,73 @@ export default function AdminDashboardScreen() {
               >
                 <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 13 }}>
                   Export Report
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Quick nav row */}
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
+              <TouchableOpacity
+                onPress={() => router.push('/admin/verifications' as never)}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  backgroundColor: COLORS.surface,
+                }}
+              >
+                <Camera size={15} color={COLORS.warning} />
+                <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 13 }}>
+                  Verifications
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/admin/volunteers' as never)}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  backgroundColor: COLORS.surface,
+                }}
+              >
+                <Users size={15} color={COLORS.success} />
+                <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 13 }}>
+                  Volunteers
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/admin/activity-types' as never)}
+                activeOpacity={0.7}
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  paddingVertical: 12,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: COLORS.border,
+                  backgroundColor: COLORS.surface,
+                }}
+              >
+                <Tag size={15} color={COLORS.gold} />
+                <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 13 }}>
+                  Types
                 </Text>
               </TouchableOpacity>
             </View>
@@ -391,14 +477,34 @@ export default function AdminDashboardScreen() {
 
             {/* Opportunities heading */}
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 16 }}>
-                Opportunities
-              </Text>
-              {oppsResult && (
-                <Text style={{ color: COLORS.muted, fontSize: 12 }}>
-                  {oppsResult.total} total
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 16 }}>
+                  Opportunities
                 </Text>
-              )}
+                {oppsResult && (
+                  <Text style={{ color: COLORS.muted, fontSize: 12 }}>
+                    {oppsResult.total} total
+                  </Text>
+                )}
+              </View>
+              <TouchableOpacity
+                onPress={() => router.push('/admin/opportunity/new' as never)}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 8,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: COLORS.gold,
+                  backgroundColor: `${COLORS.gold}15`,
+                }}
+              >
+                <Plus size={14} color={COLORS.gold} />
+                <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 13 }}>Post</Text>
+              </TouchableOpacity>
             </View>
 
             {oppsLoading && page === 1 && (

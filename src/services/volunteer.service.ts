@@ -2,6 +2,64 @@ import { supabase } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
 import type { Volunteer, LeaderboardEntry, Result } from '@/types'
 
+function safeRole(meta: Record<string, unknown>): 'student' | 'alumni' | 'supporter' {
+  const r = String(meta['role'] ?? '')
+  if (r === 'alumni' || r === 'supporter') return r
+  return 'student'
+}
+
+/**
+ * Creates a volunteer row from Supabase Auth user data.
+ * Uses INSERT (never upsert/update) so existing fields like is_admin,
+ * total_points, level, etc. are never overwritten on a transient DB error.
+ * If the row already exists (23505), retries getVolunteerById — the first
+ * fetch was a transient failure, not a truly missing row.
+ */
+export async function upsertVolunteerFromAuth(
+  userId: string,
+  email: string,
+  metadata: Record<string, unknown>
+): Promise<Result<Volunteer>> {
+  try {
+    const { data, error } = await supabase
+      .from('volunteers')
+      .insert({
+        id: userId,
+        email,
+        full_name: String(metadata['full_name'] ?? 'Volunteer'),
+        phone: metadata['phone'] ? String(metadata['phone']) : null,
+        role: safeRole(metadata),
+        employer_org: metadata['employer_org'] ? String(metadata['employer_org']) : null,
+        preferences: [],
+        skills: [],
+        consent_push: true,
+        consent_email: true,
+        consent_linkedin: false,
+        reliability_score: 100,
+        total_points: 0,
+        level: 1,
+        streak_months: 0,
+        consecutive_rejections: 0,
+        times_selected: 0,
+        times_completed: 0,
+        is_active: true,
+        do_not_contact: false,
+        is_admin: false,
+      })
+      .select('*')
+      .single()
+
+    if (error) {
+      // Row already exists — first fetch was a transient error. Retry the read.
+      if (error.code === '23505') return getVolunteerById(userId)
+      return { data: null, error: toAppError(error) }
+    }
+    return { data: data as Volunteer, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
 export async function getVolunteerById(id: string): Promise<Result<Volunteer>> {
   try {
     const { data, error } = await supabase

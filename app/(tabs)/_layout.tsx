@@ -1,7 +1,7 @@
 import React from 'react'
 import { Tabs } from 'expo-router'
 import { Home, Search, BarChart2, Trophy, User, Bell, ShieldCheck } from 'lucide-react-native'
-import { View, Text } from 'react-native'
+import { View, Text, StyleSheet } from 'react-native'
 import { COLORS } from '@/constants/theme'
 import { useAuthStore, selectVolunteer, selectIsAdmin } from '@/stores/auth.store'
 import { useUnreadCount } from '@/hooks/useNotifications'
@@ -40,6 +40,10 @@ function NotifIcon({ color, size }: { color: string | undefined; size: number })
   )
 }
 
+const styles = StyleSheet.create({
+  hiddenTab: { width: 0, overflow: 'hidden' },
+})
+
 export default function TabsLayout() {
   const isAdmin = useAuthStore(selectIsAdmin)
 
@@ -52,12 +56,12 @@ export default function TabsLayout() {
           backgroundColor: COLORS.surface,
           borderTopColor: COLORS.border,
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 56,
         },
+        tabBarIconStyle: { marginTop: 8 },
         tabBarActiveTintColor: COLORS.gold,
         tabBarInactiveTintColor: COLORS.muted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', marginTop: 2, marginBottom: 6 },
       }}
     >
       <Tabs.Screen
@@ -106,7 +110,7 @@ export default function TabsLayout() {
         name="admin"
         options={{
           title: 'Admin',
-          href: isAdmin ? '/admin' : null,
+          tabBarButton: isAdmin ? undefined : () => <View style={styles.hiddenTab} />,
           tabBarIcon: ({ color, size }) => <ShieldCheck size={size} color={color} />,
         }}
       />

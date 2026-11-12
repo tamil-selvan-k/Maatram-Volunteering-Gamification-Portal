@@ -28,11 +28,11 @@ export const ACTIVITY_BASE_POINTS_PER_HOUR: Record<ActivityType, number> = {
 }
 
 // Tailwind class sets for each activity type
-export const ACTIVITY_STYLES: Record<ActivityType, { badge: string; text: string; dot: string }> = {
-  physical_event:          { badge: 'bg-yellow-500/15 border border-yellow-500/30', text: 'text-yellow-400',  dot: 'bg-yellow-400' },
-  physical_verification:   { badge: 'bg-orange-500/15 border border-orange-500/30', text: 'text-orange-400',  dot: 'bg-orange-400' },
-  school_visit:            { badge: 'bg-blue-500/15 border border-blue-500/30',     text: 'text-blue-400',    dot: 'bg-blue-400' },
-  office_bg_work:          { badge: 'bg-purple-500/15 border border-purple-500/30', text: 'text-purple-400',  dot: 'bg-purple-400' },
-  telephone_verification:  { badge: 'bg-green-500/15 border border-green-500/30',   text: 'text-green-400',   dot: 'bg-green-400' },
-  other_small_work:        { badge: 'bg-gray-500/15 border border-gray-500/30',     text: 'text-gray-400',    dot: 'bg-gray-400' },
+export const ACTIVITY_STYLES: Record<ActivityType, { badge: string; text: string; dot: string; accent: string }> = {
+  physical_event:          { badge: 'bg-yellow-500/15 border border-yellow-500/30', text: 'text-yellow-400',  dot: 'bg-yellow-400',  accent: '#EAB308' },
+  physical_verification:   { badge: 'bg-orange-500/15 border border-orange-500/30', text: 'text-orange-400',  dot: 'bg-orange-400',  accent: '#F97316' },
+  school_visit:            { badge: 'bg-blue-500/15 border border-blue-500/30',     text: 'text-blue-400',    dot: 'bg-blue-400',    accent: '#3B82F6' },
+  office_bg_work:          { badge: 'bg-purple-500/15 border border-purple-500/30', text: 'text-purple-400',  dot: 'bg-purple-400',  accent: '#A855F7' },
+  telephone_verification:  { badge: 'bg-green-500/15 border border-green-500/30',   text: 'text-green-400',   dot: 'bg-green-400',   accent: '#22C55E' },
+  other_small_work:        { badge: 'bg-gray-500/15 border border-gray-500/30',     text: 'text-gray-400',    dot: 'bg-gray-400',    accent: '#6B7280' },
 }

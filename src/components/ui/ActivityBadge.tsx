@@ -10,8 +10,9 @@ interface ActivityBadgeProps {
 export function ActivityBadge({ type, size = 'md' }: ActivityBadgeProps) {
   const styles = ACTIVITY_STYLES[type]
   return (
-    <View className={`self-start px-2.5 py-1 rounded-full ${styles.badge}`}>
-      <Text className={`font-semibold text-xs ${size === 'sm' ? 'text-xs' : 'text-xs'} ${styles.text}`}>
+    <View className={`self-start flex-row items-center gap-1.5 px-2.5 py-1 rounded-full ${styles.badge}`}>
+      <View className={`w-1.5 h-1.5 rounded-full ${styles.dot}`} />
+      <Text className={`font-semibold text-xs ${styles.text}`}>
         {ACTIVITY_LABELS[type]}
       </Text>
     </View>

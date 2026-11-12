@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
-import type { Result, PaginatedResult, Opportunity, RegistrationStatus } from '@/types'
+import { allocateOpportunity } from '@/lib/priority'
+import type { VolunteerProfile, OpportunityProfile, CompletedActivity } from '@/lib/priority'
+import type { Result, PaginatedResult, Opportunity, RegistrationStatus, ActivityType, OpportunityStatus, Volunteer } from '@/types'
 
 // ─── Stat types ───────────────────────────────────────────────────────────────
 
@@ -280,6 +282,72 @@ export async function updateRegistrationStatus(
   }
 }
 
+// ─── Create / Update Opportunity ─────────────────────────────────────────────
+
+export interface CreateOpportunityInput {
+  title: string
+  description: string | null
+  activity_type: ActivityType
+  mode: 'online' | 'offline'
+  location: string | null
+  event_date: string
+  duration_hours: number
+  total_slots: number
+  registration_deadline: string
+  required_skills: string[]
+  mandatory_skills: string[]
+}
+
+export type UpdateOpportunityInput = Partial<CreateOpportunityInput> & {
+  status?: OpportunityStatus
+}
+
+export async function createOpportunity(
+  input: CreateOpportunityInput
+): Promise<Result<Opportunity>> {
+  try {
+    const {
+      data: { user },
+      error: authErr,
+    } = await supabase.auth.getUser()
+    if (authErr || !user) {
+      return { data: null, error: toAppError(authErr ?? new Error('Not authenticated')) }
+    }
+
+    const { data, error } = await supabase
+      .from('opportunities')
+      .insert({ ...input, created_by: user.id, status: 'open' as OpportunityStatus })
+      .select('*')
+      .single()
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: data as Opportunity, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function updateOpportunity(
+  id: string,
+  input: UpdateOpportunityInput
+): Promise<Result<Opportunity>> {
+  try {
+    const { data, error } = await supabase
+      .from('opportunities')
+      .update(input)
+      .eq('id', id)
+      .select('*')
+      .single()
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: data as Opportunity, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Activity report ──────────────────────────────────────────────────────────
+
 export async function generateActivityReport(
   period: 'month' | 'quarter' | 'all'
 ): Promise<Result<ActivityReport>> {
@@ -402,6 +470,458 @@ export async function generateActivityReport(
       },
       error: null,
     }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Delete opportunity ───────────────────────────────────────────────────────
+
+export async function deleteOpportunity(id: string): Promise<Result<void>> {
+  try {
+    const { error } = await supabase
+      .from('opportunities')
+      .delete()
+      .eq('id', id)
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: undefined, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Verification review ──────────────────────────────────────────────────────
+
+export interface PendingVerificationRow {
+  id: string
+  registration_id: string
+  volunteer_id: string
+  volunteer_name: string
+  volunteer_email: string
+  opportunity_id: string
+  opportunity_title: string
+  photo_url: string
+  verification_level: string
+  created_at: string
+}
+
+export async function getPendingVerifications(
+  opportunityId?: string
+): Promise<Result<PendingVerificationRow[]>> {
+  try {
+    const { data: verifications, error: verErr } = await supabase
+      .from('verifications')
+      .select('id, registration_id, photo_url, verification_level, created_at')
+      .eq('verification_level', 'photo_pending')
+      .eq('admin_approved', false)
+      .not('photo_url', 'is', null)
+
+    if (verErr) return { data: null, error: toAppError(verErr) }
+
+    const vers = (verifications ?? []) as Array<{
+      id: string
+      registration_id: string
+      photo_url: string
+      verification_level: string
+      created_at: string
+    }>
+
+    if (vers.length === 0) return { data: [], error: null }
+
+    const regIds = vers.map((v) => v.registration_id)
+    const { data: registrations, error: regErr } = await supabase
+      .from('registrations')
+      .select('id, volunteer_id, opportunity_id')
+      .in('id', regIds)
+
+    if (regErr) return { data: null, error: toAppError(regErr) }
+
+    const regs = (registrations ?? []) as Array<{
+      id: string
+      volunteer_id: string
+      opportunity_id: string
+    }>
+
+    // Filter by opportunityId if specified
+    const filteredRegs = opportunityId
+      ? regs.filter((r) => r.opportunity_id === opportunityId)
+      : regs
+
+    if (filteredRegs.length === 0) return { data: [], error: null }
+
+    const filteredRegIds = new Set(filteredRegs.map((r) => r.id))
+    const filteredVers = vers.filter((v) => filteredRegIds.has(v.registration_id))
+
+    if (filteredVers.length === 0) return { data: [], error: null }
+
+    const volunteerIds = [...new Set(filteredRegs.map((r) => r.volunteer_id))]
+    const opportunityIds = [...new Set(filteredRegs.map((r) => r.opportunity_id))]
+
+    const [{ data: volunteers, error: volErr }, { data: opportunities, error: oppErr }] =
+      await Promise.all([
+        supabase.from('volunteers').select('id, full_name, email').in('id', volunteerIds),
+        supabase.from('opportunities').select('id, title').in('id', opportunityIds),
+      ])
+
+    if (volErr) return { data: null, error: toAppError(volErr) }
+    if (oppErr) return { data: null, error: toAppError(oppErr) }
+
+    const regMap = new Map(filteredRegs.map((r) => [r.id, r]))
+    const volMap = new Map(
+      ((volunteers ?? []) as Array<{ id: string; full_name: string; email: string }>).map((v) => [
+        v.id,
+        v,
+      ])
+    )
+    const oppMap = new Map(
+      ((opportunities ?? []) as Array<{ id: string; title: string }>).map((o) => [o.id, o])
+    )
+
+    const rows: PendingVerificationRow[] = filteredVers.map((ver) => {
+      const reg = regMap.get(ver.registration_id)!
+      const vol = volMap.get(reg.volunteer_id)
+      const opp = oppMap.get(reg.opportunity_id)
+      return {
+        id: ver.id,
+        registration_id: ver.registration_id,
+        volunteer_id: reg.volunteer_id,
+        volunteer_name: vol?.full_name ?? 'Unknown',
+        volunteer_email: vol?.email ?? '',
+        opportunity_id: reg.opportunity_id,
+        opportunity_title: opp?.title ?? '',
+        photo_url: ver.photo_url,
+        verification_level: ver.verification_level,
+        created_at: ver.created_at,
+      }
+    })
+
+    return { data: rows, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function approveVerification(id: string): Promise<Result<void>> {
+  try {
+    const { error } = await supabase
+      .from('verifications')
+      .update({ admin_approved: true })
+      .eq('id', id)
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: undefined, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function rejectVerification(id: string): Promise<Result<void>> {
+  try {
+    const { error } = await supabase.from('verifications').delete().eq('id', id)
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: undefined, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Run allocation ───────────────────────────────────────────────────────────
+
+export async function runAllocation(
+  opportunityId: string
+): Promise<Result<{ selected: string[]; waitlisted: string[] }>> {
+  try {
+    // 1. Fetch opportunity
+    const { data: oppData, error: oppErr } = await supabase
+      .from('opportunities')
+      .select('id, total_slots, activity_type, required_skills, mandatory_skills')
+      .eq('id', opportunityId)
+      .single()
+
+    if (oppErr || !oppData) {
+      return { data: null, error: toAppError(oppErr ?? new Error('Opportunity not found')) }
+    }
+
+    const opp = oppData as {
+      id: string
+      total_slots: number
+      activity_type: string
+      required_skills: string[]
+      mandatory_skills: string[]
+    }
+
+    // 2. Fetch registered registrations
+    const { data: registrations, error: regErr } = await supabase
+      .from('registrations')
+      .select('id, volunteer_id')
+      .eq('opportunity_id', opportunityId)
+      .eq('status', 'registered')
+
+    if (regErr) return { data: null, error: toAppError(regErr) }
+
+    const regs = (registrations ?? []) as Array<{ id: string; volunteer_id: string }>
+
+    if (regs.length === 0) {
+      return { data: { selected: [], waitlisted: [] }, error: null }
+    }
+
+    const volunteerIds = regs.map((r) => r.volunteer_id)
+
+    // 3. Fetch volunteer rows
+    const { data: volunteers, error: volErr } = await supabase
+      .from('volunteers')
+      .select(
+        'id, created_at, preferences, skills, consecutive_rejections, times_selected, times_completed'
+      )
+      .in('id', volunteerIds)
+
+    if (volErr) return { data: null, error: toAppError(volErr) }
+
+    type VolRow = {
+      id: string
+      created_at: string
+      preferences: string[]
+      skills: string[]
+      consecutive_rejections: number
+      times_selected: number
+      times_completed: number
+    }
+    const volRows = (volunteers ?? []) as VolRow[]
+
+    // 4. Fetch completed activities for each volunteer (from previous selected+verified regs)
+    const { data: prevRegs, error: prevRegErr } = await supabase
+      .from('registrations')
+      .select('id, volunteer_id, opportunity_id')
+      .in('volunteer_id', volunteerIds)
+      .eq('status', 'selected')
+
+    if (prevRegErr) return { data: null, error: toAppError(prevRegErr) }
+
+    const prevRegsArr = (prevRegs ?? []) as Array<{
+      id: string
+      volunteer_id: string
+      opportunity_id: string
+    }>
+
+    const completedActivitiesMap = new Map<string, CompletedActivity[]>()
+
+    if (prevRegsArr.length > 0) {
+      const prevRegIds = prevRegsArr.map((r) => r.id)
+      const { data: verData } = await supabase
+        .from('verifications')
+        .select('registration_id, checkout_time')
+        .in('registration_id', prevRegIds)
+        .not('checkout_time', 'is', null)
+
+      const verRows = (verData ?? []) as Array<{
+        registration_id: string
+        checkout_time: string
+      }>
+
+      if (verRows.length > 0) {
+        const verMap = new Map(verRows.map((v) => [v.registration_id, v.checkout_time]))
+        const oppIds = [...new Set(prevRegsArr.map((r) => r.opportunity_id))]
+
+        const { data: oppsData } = await supabase
+          .from('opportunities')
+          .select('id, activity_type')
+          .in('id', oppIds)
+
+        const oppTypeMap = new Map(
+          ((oppsData ?? []) as Array<{ id: string; activity_type: string }>).map((o) => [
+            o.id,
+            o.activity_type as ActivityType,
+          ])
+        )
+
+        for (const reg of prevRegsArr) {
+          const checkoutTime = verMap.get(reg.id)
+          if (!checkoutTime) continue
+          const type = oppTypeMap.get(reg.opportunity_id)
+          if (!type) continue
+          const existing = completedActivitiesMap.get(reg.volunteer_id) ?? []
+          completedActivitiesMap.set(reg.volunteer_id, [
+            ...existing,
+            { type, completedAt: checkoutTime },
+          ])
+        }
+      }
+    }
+
+    // 5. Build VolunteerProfile objects
+    const applicants: VolunteerProfile[] = volRows.map((vol) => ({
+      id: vol.id,
+      createdAt: vol.created_at,
+      preferences: vol.preferences as ActivityType[],
+      skills: vol.skills,
+      consecutiveRejections: vol.consecutive_rejections,
+      timesSelected: vol.times_selected,
+      timesCompleted: vol.times_completed,
+      completedActivities: completedActivitiesMap.get(vol.id) ?? [],
+    }))
+
+    // 6. Build OpportunityProfile
+    const oppProfile: OpportunityProfile = {
+      activityType: opp.activity_type as ActivityType,
+      requiredSkills: opp.required_skills,
+      mandatorySkills: opp.mandatory_skills,
+      totalSlots: opp.total_slots,
+    }
+
+    // 7. Run algorithm
+    const result = allocateOpportunity(oppProfile, applicants)
+
+    // 8. Map volunteer IDs → registration IDs
+    const volToRegId = new Map(regs.map((r) => [r.volunteer_id, r.id]))
+
+    const selectedRegIds = result.selected
+      .map((volId) => volToRegId.get(volId))
+      .filter((id): id is string => !!id)
+
+    const waitlistedRegIds = result.waitlisted
+      .map((volId) => volToRegId.get(volId))
+      .filter((id): id is string => !!id)
+
+    // 9. Persist statuses
+    if (selectedRegIds.length > 0) {
+      const { error: selErr } = await supabase
+        .from('registrations')
+        .update({ status: 'selected' as RegistrationStatus })
+        .in('id', selectedRegIds)
+      if (selErr) return { data: null, error: toAppError(selErr) }
+    }
+
+    if (waitlistedRegIds.length > 0) {
+      const { error: wlErr } = await supabase
+        .from('registrations')
+        .update({ status: 'waitlisted' as RegistrationStatus })
+        .in('id', waitlistedRegIds)
+      if (wlErr) return { data: null, error: toAppError(wlErr) }
+    }
+
+    return { data: { selected: result.selected, waitlisted: result.waitlisted }, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Volunteer management ─────────────────────────────────────────────────────
+
+export async function getVolunteers(
+  page = 1,
+  search?: string,
+  pageSize = 20
+): Promise<Result<PaginatedResult<Volunteer>>> {
+  try {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    let query = supabase
+      .from('volunteers')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to)
+
+    if (search?.trim()) {
+      query = query.or(
+        `full_name.ilike.%${search.trim()}%,email.ilike.%${search.trim()}%`
+      )
+    }
+
+    const { data, error, count } = await query
+
+    if (error) return { data: null, error: toAppError(error) }
+
+    return {
+      data: {
+        items: (data as Volunteer[]) ?? [],
+        total: count ?? 0,
+        page,
+        pageSize,
+        hasMore: (count ?? 0) > to + 1,
+      },
+      error: null,
+    }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function updateVolunteerAdmin(
+  id: string,
+  updates: { is_admin?: boolean; do_not_contact?: boolean; is_active?: boolean }
+): Promise<Result<Volunteer>> {
+  try {
+    const { data, error } = await supabase
+      .from('volunteers')
+      .update(updates)
+      .eq('id', id)
+      .select('*')
+      .single()
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: data as Volunteer, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Activity types ───────────────────────────────────────────────────────────
+
+export interface ActivityTypeRow {
+  id: string
+  key: string
+  label: string
+  accent: string
+  is_active: boolean
+  created_at: string
+}
+
+export async function getActivityTypes(): Promise<Result<ActivityTypeRow[]>> {
+  try {
+    const { data, error } = await supabase
+      .from('activity_types')
+      .select('*')
+      .eq('is_active', true)
+      .order('label', { ascending: true })
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: (data as ActivityTypeRow[]) ?? [], error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function createActivityType(
+  key: string,
+  label: string,
+  accent: string
+): Promise<Result<ActivityTypeRow>> {
+  try {
+    const { data, error } = await supabase
+      .from('activity_types')
+      .insert({ key, label, accent })
+      .select('*')
+      .single()
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: data as ActivityTypeRow, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function deleteActivityType(id: string): Promise<Result<void>> {
+  try {
+    const { error } = await supabase
+      .from('activity_types')
+      .update({ is_active: false })
+      .eq('id', id)
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: undefined, error: null }
   } catch (err) {
     return { data: null, error: toAppError(err) }
   }

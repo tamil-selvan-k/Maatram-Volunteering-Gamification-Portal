@@ -5,17 +5,20 @@ import { useAuthStore, selectIsAdmin } from '@/stores/auth.store'
 import { COLORS } from '@/constants/theme'
 
 export default function AdminLayout() {
-  const isAdmin  = useAuthStore(selectIsAdmin)
+  const isAdmin   = useAuthStore(selectIsAdmin)
   const isLoading = useAuthStore((s) => s.isLoading)
-  const router   = useRouter()
+  const volunteer = useAuthStore((s) => s.volunteer)
+  const router    = useRouter()
 
   useEffect(() => {
-    if (!isLoading && !isAdmin) {
+    // Only redirect when the volunteer row has actually loaded (not null).
+    // If volunteer is null the DB fetch may have failed — don't kick the user out.
+    if (!isLoading && volunteer !== null && !isAdmin) {
       router.replace('/(tabs)')
     }
-  }, [isLoading, isAdmin, router])
+  }, [isLoading, volunteer, isAdmin, router])
 
-  if (isLoading) {
+  if (isLoading || volunteer === null) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={COLORS.gold} />
@@ -24,7 +27,6 @@ export default function AdminLayout() {
   }
 
   if (!isAdmin) {
-    // Will redirect via the effect; render nothing while navigating
     return null
   }
 

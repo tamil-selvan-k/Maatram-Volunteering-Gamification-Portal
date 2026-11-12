@@ -9,8 +9,15 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { Trash2, Zap } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
-import { useOpportunityRegistrations, useUpdateRegistrationStatus } from '@/hooks/useAdmin'
+import {
+  useOpportunityRegistrations,
+  useUpdateRegistrationStatus,
+  useDeleteOpportunity,
+  useRunAllocation,
+  useAdminOpportunity,
+} from '@/hooks/useAdmin'
 import type { AdminRegistrationRow } from '@/services/admin.service'
 import type { RegistrationStatus } from '@/types'
 
@@ -189,9 +196,60 @@ export default function OpportunityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const router = useRouter()
   const { data: registrations = [], isLoading } = useOpportunityRegistrations(id ?? '')
+  const { data: opportunity } = useAdminOpportunity(id ?? '')
+  const { mutate: doDelete, isPending: isDeleting } = useDeleteOpportunity()
+  const { mutate: doAllocate, isPending: isAllocating } = useRunAllocation()
 
   const totalApplicants = registrations.length
   const totalSelected = registrations.filter((r) => r.status === 'selected').length
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Delete Opportunity',
+      'This will permanently delete this opportunity and all its registrations. This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            doDelete(id ?? '', {
+              onSuccess: () => router.replace('/admin' as never),
+              onError: () => Alert.alert('Error', 'Failed to delete opportunity.'),
+            })
+          },
+        },
+      ]
+    )
+  }
+
+  const handleRunAllocation = () => {
+    Alert.alert(
+      'Run Allocation',
+      `This will run the priority algorithm on ${totalApplicants} registered applicant(s) and assign selected/waitlisted statuses.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Run',
+          onPress: () => {
+            doAllocate(id ?? '', {
+              onSuccess: (result) => {
+                Alert.alert(
+                  'Allocation Complete',
+                  `Selected: ${result?.selected.length ?? 0}  •  Waitlisted: ${result?.waitlisted.length ?? 0}`
+                )
+              },
+              onError: () => Alert.alert('Error', 'Failed to run allocation.'),
+            })
+          },
+        },
+      ]
+    )
+  }
+
+  const showAllocation =
+    opportunity?.status === 'registration_closed' ||
+    (opportunity?.status === 'open' && totalApplicants > 0)
 
   const renderItem = useCallback(
     ({ item }: { item: AdminRegistrationRow }) => (
@@ -219,7 +277,40 @@ export default function OpportunityDetailScreen() {
         <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 16 }}>
           Registrations
         </Text>
-        <View style={{ width: 60 }} />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <TouchableOpacity
+            onPress={() => router.push(`/admin/opportunity/edit/${id ?? ''}` as never)}
+            activeOpacity={0.7}
+            style={{
+              paddingHorizontal: 12,
+              paddingVertical: 6,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              backgroundColor: COLORS.surface,
+            }}
+          >
+            <Text style={{ color: COLORS.white, fontSize: 13, fontWeight: '600' }}>Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDelete}
+            disabled={isDeleting}
+            activeOpacity={0.7}
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 10,
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: `${COLORS.error}50`,
+              backgroundColor: `${COLORS.error}15`,
+              opacity: isDeleting ? 0.5 : 1,
+            }}
+          >
+            <Trash2 size={16} color={COLORS.error} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Summary */}
@@ -264,6 +355,38 @@ export default function OpportunityDetailScreen() {
           <Text style={{ color: COLORS.muted, fontSize: 11, marginTop: 2 }}>Selected</Text>
         </View>
       </View>
+
+      {/* Run Allocation button */}
+      {showAllocation && (
+        <View style={{ paddingHorizontal: 16, paddingBottom: 8 }}>
+          <TouchableOpacity
+            onPress={handleRunAllocation}
+            disabled={isAllocating}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              padding: 13,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: `${COLORS.gold}50`,
+              backgroundColor: `${COLORS.gold}15`,
+              opacity: isAllocating ? 0.5 : 1,
+            }}
+          >
+            {isAllocating ? (
+              <ActivityIndicator size="small" color={COLORS.gold} />
+            ) : (
+              <Zap size={16} color={COLORS.gold} />
+            )}
+            <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 14 }}>
+              {isAllocating ? 'Running…' : 'Run Allocation'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* List */}
       {isLoading ? (

@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Switch, Alert, TextInput, TouchableOpacity } from 'react-native'
+import { View, Text, ScrollView, Switch, Alert, TextInput, TouchableOpacity, Pressable } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -8,6 +8,7 @@ import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { LevelBadge } from '@/components/gamification/LevelBadge'
 import { StreakFlame } from '@/components/gamification/StreakFlame'
 import { Button } from '@/components/ui/Button'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { ImpactSummary } from '@/components/profile/ImpactSummary'
 import { supabase } from '@/lib/supabase/client'
 import { updateVolunteerProfile } from '@/services/volunteer.service'
@@ -101,9 +102,72 @@ function Chip({
   )
 }
 
+// ─── Loading skeleton ─────────────────────────────────────────────────────────
+function ProfileSkeleton() {
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Impact summary shimmer */}
+        <Skeleton height={130} className="rounded-2xl mb-5" />
+
+        {/* Avatar + name shimmer */}
+        <View style={{ alignItems: 'center', marginBottom: 24 }}>
+          <View
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+              backgroundColor: COLORS.surfaceElevated,
+              marginBottom: 12,
+            }}
+          />
+          <View style={{ width: 160, marginBottom: 8 }}>
+            <Skeleton height={18} className="rounded-lg" />
+          </View>
+          <View style={{ width: 120, marginBottom: 10 }}>
+            <Skeleton height={14} className="rounded-md" />
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ width: 80 }}>
+              <Skeleton height={28} className="rounded-full" />
+            </View>
+            <View style={{ width: 100 }}>
+              <Skeleton height={28} className="rounded-full" />
+            </View>
+          </View>
+        </View>
+
+        {/* Stats shimmer */}
+        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
+          <View style={{ flex: 1 }}>
+            <Skeleton height={80} className="rounded-2xl" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Skeleton height={80} className="rounded-2xl" />
+          </View>
+        </View>
+
+        {/* Form section shimmers */}
+        {[100, 100, 190, 220, 180].map((h, i) => (
+          <Skeleton key={i} height={h} className="rounded-2xl mb-3" />
+        ))}
+
+        {/* Button shimmers */}
+        <Skeleton height={52} className="rounded-2xl mb-3" />
+        <Skeleton height={52} className="rounded-2xl" />
+      </ScrollView>
+    </SafeAreaView>
+  )
+}
+
 // ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ProfileScreen() {
   const volunteer = useAuthStore(selectVolunteer)
+  const isLoading = useAuthStore((s) => s.isLoading)
   const setVolunteer = useAuthStore((s) => s.setVolunteer)
   const router = useRouter()
 
@@ -147,7 +211,30 @@ export default function ProfileScreen() {
     await supabase.auth.signOut()
   }
 
-  if (!volunteer) return null
+  if (isLoading) return <ProfileSkeleton />
+
+  // Volunteer row didn't load — show a dark fallback rather than a blank white screen
+  if (!volunteer) {
+    return (
+      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+          <Text style={{ fontSize: 28 }}>👤</Text>
+        </View>
+        <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 18, marginBottom: 8 }}>
+          Profile unavailable
+        </Text>
+        <Text style={{ color: COLORS.muted, fontSize: 14, textAlign: 'center', lineHeight: 22, marginBottom: 32 }}>
+          We couldn't load your profile data. Please sign out and sign back in.
+        </Text>
+        <Pressable
+          onPress={handleSignOut}
+          style={{ backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 24, paddingVertical: 12 }}
+        >
+          <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 15 }}>Sign Out</Text>
+        </Pressable>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>

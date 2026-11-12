@@ -14,6 +14,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 function RootLayoutNav() {
   useAuthListener()
   const isLoading = useAuthStore((s) => s.isLoading)
+  const session  = useAuthStore((s) => s.session)
   const volunteer = useAuthStore((s) => s.volunteer)
   const needsOnboarding = useUIStore((s) => s.needsOnboarding)
   const router = useRouter()
@@ -27,12 +28,17 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading && !timedOut) return
 
-    if (!volunteer) {
+    // Gate on session, not volunteer. If a valid Supabase session exists but
+    // the volunteer row failed to load (DB error, network blip), we must NOT
+    // redirect to login — the user is authenticated. Only redirect when there
+    // is genuinely no session.
+    if (!session) {
       router.replace('/(auth)/login')
-    } else if (needsOnboarding) {
+    } else if (volunteer && needsOnboarding) {
+      // Only navigate to onboarding once volunteer data has actually loaded.
       router.replace('/(auth)/onboarding')
     }
-  }, [isLoading, timedOut, volunteer, needsOnboarding, router])
+  }, [isLoading, timedOut, session, volunteer, needsOnboarding, router])
 
   if (isLoading && !timedOut) {
     return (

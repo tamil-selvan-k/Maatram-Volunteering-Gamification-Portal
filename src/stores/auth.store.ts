@@ -1,11 +1,19 @@
 import { create } from 'zustand'
+import type { Session } from '@supabase/supabase-js'
 import { getLevelInfo } from '@/utils'
 import type { Volunteer } from '@/types'
 
 interface AuthState {
   volunteer: Volunteer | null
+  /**
+   * The raw Supabase session. Set as soon as getSession() resolves, before the
+   * volunteer row is fetched. The redirect-to-login gate uses this, not `volunteer`,
+   * so a DB failure fetching the volunteer row never kicks the user out.
+   */
+  session: Session | null
   isLoading: boolean
   setVolunteer: (v: Volunteer | null) => void
+  setSession: (session: Session | null) => void
   setLoading: (loading: boolean) => void
   reset: () => void
   /** internal: previous level, used to detect level-up */
@@ -14,6 +22,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
   volunteer: null,
+  session: null,
   isLoading: true,
   _prevLevel: 1,
   setVolunteer: (volunteer) => {
@@ -34,14 +43,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }).catch(() => { /* ignore */ })
     }
   },
+  setSession: (session) => set({ session }),
   setLoading: (isLoading) => set({ isLoading }),
-  reset: () => set({ volunteer: null, isLoading: false, _prevLevel: 1 }),
+  reset: () => set({ volunteer: null, session: null, isLoading: false, _prevLevel: 1 }),
 }))
 
 // Selectors — use these to avoid unnecessary re-renders
 export const selectVolunteer    = (s: AuthState) => s.volunteer
-export const selectIsAdmin      = (s: AuthState) =>
-  (s.volunteer?.is_admin ?? false) ||
-  s.volunteer?.role === 'admin' ||
-  s.volunteer?.role === 'org_admin'
+export const selectIsAdmin      = (s: AuthState) => s.volunteer?.is_admin ?? false
 export const selectTotalPoints  = (s: AuthState) => s.volunteer?.total_points ?? 0

@@ -29,7 +29,14 @@ export default function LoginScreen() {
         password: values.password,
       })
       if (error) {
-        setLoginError(error.message)
+        const msg = error.message.toLowerCase()
+        if (msg.includes('email not confirmed') || msg.includes('email_not_confirmed')) {
+          setLoginError(
+            'Your email address hasn\'t been verified yet. Please check your inbox and click the verification link we sent when you signed up.'
+          )
+        } else {
+          setLoginError(error.message)
+        }
         return
       }
       router.replace('/(tabs)')

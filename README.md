@@ -104,7 +104,3 @@ Detailed design docs are in the [docs/](docs/) directory:
 - [Data Model](docs/DATA_MODEL.md)
 - [UX Flow](docs/UX_FLOW.md)
 - [Roadmap](docs/ROADMAP.md)
-
-## License
-
-MIT

@@ -1,8 +1,8 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { View, Text, FlatList, ScrollView, TouchableOpacity, type ListRenderItem } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Search, SlidersHorizontal } from 'lucide-react-native'
-import { useOpportunities, useRegisterInterest } from '@/hooks/useOpportunities'
+import { useOpportunities, useRegisterInterest, useMyRegistrations, useSelectedCounts } from '@/hooks/useOpportunities'
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Input } from '@/components/ui/Input'
@@ -29,7 +29,19 @@ export default function OpportunitiesScreen() {
   }
 
   const { data: opportunities, isLoading } = useOpportunities(filters)
+  const { data: myRegs } = useMyRegistrations()
   const registerMutation = useRegisterInterest()
+
+  const oppIds = useMemo(() => (opportunities ?? []).map((o) => o.id), [opportunities])
+  const { data: selectedCounts } = useSelectedCounts(oppIds)
+
+  const regStatusMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const reg of myRegs ?? []) {
+      map.set(reg.opportunity_id, reg.status)
+    }
+    return map
+  }, [myRegs])
 
   const handleRegister = useCallback(
     (id: string) => {
@@ -44,9 +56,11 @@ export default function OpportunitiesScreen() {
         opportunity={item}
         onRegister={handleRegister}
         isRegistering={registerMutation.isPending && registerMutation.variables === item.id}
+        registrationStatus={(regStatusMap.get(item.id) as any) ?? null}
+        filledSlots={selectedCounts?.[item.id] ?? 0}
       />
     ),
-    [handleRegister, registerMutation.isPending, registerMutation.variables]
+    [handleRegister, registerMutation.isPending, registerMutation.variables, regStatusMap, selectedCounts]
   )
 
   const count = opportunities?.length ?? 0
@@ -71,7 +85,8 @@ export default function OpportunitiesScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 8, gap: 8, alignItems: 'center' }}
+        style={{ flexGrow: 0, flexShrink: 0 }}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 4, gap: 8, alignItems: 'center' }}
       >
         <TouchableOpacity
           onPress={() => setActiveFilter(null)}
@@ -119,7 +134,7 @@ export default function OpportunitiesScreen() {
       )}
 
       {isLoading ? (
-        <View className="gap-3 px-4 pt-1">
+        <View className="flex-1 gap-3 px-4 pt-1">
           <Skeleton height={160} />
           <Skeleton height={180} />
           <Skeleton height={160} />
@@ -129,6 +144,7 @@ export default function OpportunitiesScreen() {
           data={opportunities ?? []}
           renderItem={renderItem}
           keyExtractor={(item) => item.id}
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 24, paddingTop: 4 }}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={

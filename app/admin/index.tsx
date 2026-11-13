@@ -6,12 +6,12 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  Alert,
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
+import { showAlert } from '@/lib/alert'
 import { ChevronLeft, Plus, Camera, Users, Tag } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
 import { useAdminStats, useAdminOpportunities, useActivityReport } from '@/hooks/useAdmin'
@@ -143,7 +143,7 @@ function ReportModal({
   const handleCopy = async () => {
     if (!report) return
     await Clipboard.setStringAsync(JSON.stringify(report, null, 2))
-    Alert.alert('Copied', 'Report JSON copied to clipboard.')
+    showAlert('Copied', 'Report JSON copied to clipboard.')
   }
 
   return (

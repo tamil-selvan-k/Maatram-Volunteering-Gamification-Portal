@@ -270,9 +270,29 @@ export async function updateRegistrationStatus(
   status: RegistrationStatus
 ): Promise<Result<void>> {
   try {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('registrations')
       .update({ status })
+      .eq('id', registrationId)
+      .select('id')
+
+    if (error) return { data: null, error: toAppError(error) }
+    if (!data || data.length === 0) {
+      return { data: null, error: toAppError(new Error('Update failed — you may not have permission. Ask an org admin to apply the registrations UPDATE policy.')) }
+    }
+    return { data: undefined, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+export async function deleteRegistration(
+  registrationId: string
+): Promise<Result<void>> {
+  try {
+    const { error } = await supabase
+      .from('registrations')
+      .delete()
       .eq('id', registrationId)
 
     if (error) return { data: null, error: toAppError(error) }
@@ -786,19 +806,35 @@ export async function runAllocation(
 
     // 9. Persist statuses
     if (selectedRegIds.length > 0) {
-      const { error: selErr } = await supabase
+      const { data: selData, error: selErr } = await supabase
         .from('registrations')
         .update({ status: 'selected' as RegistrationStatus })
         .in('id', selectedRegIds)
+        .select('id')
       if (selErr) return { data: null, error: toAppError(selErr) }
+      if (!selData || selData.length < selectedRegIds.length) {
+        return { data: null, error: toAppError(new Error(`Allocation partially failed — only ${selData?.length ?? 0} of ${selectedRegIds.length} registrations were updated. Check UPDATE policy on registrations table.`)) }
+      }
     }
 
     if (waitlistedRegIds.length > 0) {
-      const { error: wlErr } = await supabase
+      const { data: wlData, error: wlErr } = await supabase
         .from('registrations')
         .update({ status: 'waitlisted' as RegistrationStatus })
         .in('id', waitlistedRegIds)
-      if (wlErr) return { data: null, error: toAppError(wlErr) }
+        .select('id')
+      if (wlErr || !wlData || wlData.length < waitlistedRegIds.length) {
+        // Best-effort rollback: reset both selected and any partially-waitlisted rows
+        const rollbackIds = [...selectedRegIds, ...waitlistedRegIds]
+        const { error: rollbackErr } = await supabase
+          .from('registrations')
+          .update({ status: 'registered' as RegistrationStatus })
+          .in('id', rollbackIds)
+        const rollbackNote = rollbackErr
+          ? ' Rollback also failed — manual DB repair may be needed.'
+          : ' Rolled back all statuses to registered.'
+        return { data: null, error: toAppError(wlErr ?? new Error(`Waitlist allocation partially failed — only ${wlData?.length ?? 0} of ${waitlistedRegIds.length} updated.${rollbackNote}`)) }
+      }
     }
 
     return { data: { selected: result.selected, waitlisted: result.waitlisted }, error: null }

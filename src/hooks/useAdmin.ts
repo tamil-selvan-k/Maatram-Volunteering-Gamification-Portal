@@ -4,6 +4,7 @@ import {
   getAllOpportunities,
   getOpportunityRegistrations,
   updateRegistrationStatus,
+  deleteRegistration,
   generateActivityReport,
   createOpportunity,
   updateOpportunity,
@@ -71,18 +72,47 @@ export function useUpdateRegistrationStatus() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: ({
+    mutationFn: async ({
       registrationId,
       status,
     }: {
       registrationId: string
       status: RegistrationStatus
       opportunityId: string
-    }) => updateRegistrationStatus(registrationId, status),
+    }) => {
+      const result = await updateRegistrationStatus(registrationId, status)
+      if (result.error) throw new Error(result.error.message)
+    },
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({
         queryKey: ADMIN_KEYS.registrations(variables.opportunityId),
       })
+      void queryClient.invalidateQueries({ queryKey: ['selected-counts'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-registrations'] })
+    },
+  })
+}
+
+export function useDeleteRegistration() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      registrationId,
+    }: {
+      registrationId: string
+      opportunityId: string
+    }) => {
+      const result = await deleteRegistration(registrationId)
+      if (result.error) throw new Error(result.error.message)
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: ADMIN_KEYS.registrations(variables.opportunityId),
+      })
+      void queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      void queryClient.invalidateQueries({ queryKey: ['selected-counts'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-registrations'] })
     },
   })
 }
@@ -203,6 +233,8 @@ export function useRunAllocation() {
     onSuccess: (_data, opportunityId) => {
       void queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.registrations(opportunityId) })
       void queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      void queryClient.invalidateQueries({ queryKey: ['selected-counts'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-registrations'] })
     },
   })
 }

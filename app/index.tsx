@@ -1,7 +1,7 @@
 import { Redirect } from 'expo-router'
-import { View, ActivityIndicator } from 'react-native'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUIStore } from '@/stores/ui.store'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 
 export default function IndexRedirect() {
   const isLoading = useAuthStore((s) => s.isLoading)
@@ -9,11 +9,7 @@ export default function IndexRedirect() {
   const needsOnboarding = useUIStore((s) => s.needsOnboarding)
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0D0D0F', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#F5A623" />
-      </View>
-    )
+    return <MaatramLoader />
   }
 
   if (!volunteer) {

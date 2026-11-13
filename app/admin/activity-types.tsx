@@ -5,7 +5,6 @@ import {
   FlatList,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   ScrollView,
 } from 'react-native'
@@ -13,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Plus, Trash2 } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
+import { confirmAction, showAlert } from '@/lib/alert'
 import {
   useActivityTypes,
   useCreateActivityType,
@@ -55,20 +55,14 @@ const ActivityTypeItem = memo(function ActivityTypeItem({
   const { mutate: deleteType, isPending } = useDeleteActivityType()
 
   const handleDelete = () => {
-    Alert.alert(
+    confirmAction(
       'Remove Activity Type',
       `Remove "${item.label}"? It will be hidden from forms but historical data is preserved.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: () =>
-            deleteType(item.id, {
-              onError: () => Alert.alert('Error', 'Failed to remove activity type.'),
-            }),
-        },
-      ]
+      () =>
+        deleteType(item.id, {
+          onError: () => showAlert('Error', 'Failed to remove activity type.'),
+        }),
+      { destructive: true, confirmLabel: 'Remove' }
     )
   }
 
@@ -138,11 +132,11 @@ function AddTypeForm({ onDismiss }: { onDismiss: () => void }) {
 
   const handleSubmit = () => {
     if (!label.trim()) {
-      Alert.alert('Required', 'Label is required.')
+      showAlert('Required', 'Label is required.')
       return
     }
     if (!derivedKey) {
-      Alert.alert('Invalid', 'Label must contain at least one letter or number.')
+      showAlert('Invalid', 'Label must contain at least one letter or number.')
       return
     }
     createType(
@@ -155,7 +149,7 @@ function AddTypeForm({ onDismiss }: { onDismiss: () => void }) {
         },
         onError: (err) => {
           const msg = err instanceof Error ? err.message : 'Failed to create activity type.'
-          Alert.alert('Error', msg)
+          showAlert('Error', msg)
         },
       }
     )

@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth.store'
 import { useUIStore } from '@/stores/ui.store'
 import { LevelUpModal } from '@/components/gamification/LevelUpModal'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 
 function RootLayoutNav() {
   useAuthListener()
@@ -41,11 +42,7 @@ function RootLayoutNav() {
   }, [isLoading, timedOut, session, volunteer, needsOnboarding, router])
 
   if (isLoading && !timedOut) {
-    return (
-      <View style={{ flex: 1, backgroundColor: '#0D0D0F', alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator size="large" color="#F5A623" />
-      </View>
-    )
+    return <MaatramLoader />
   }
 
   return (

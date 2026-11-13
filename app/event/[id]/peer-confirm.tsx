@@ -1,8 +1,9 @@
 import { useCallback } from 'react'
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { PeerConfirmList } from '@/components/verification/PeerConfirmList'
 import { usePeerConfirmation } from '@/hooks/useVerification'
 import { COLORS } from '@/constants/theme'
@@ -76,9 +77,7 @@ export default function PeerConfirmScreen() {
 
       {/* List */}
       {peersQuery.isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={COLORS.gold} size="large" />
-        </View>
+        <MaatramLoader />
       ) : peersQuery.isError ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ color: COLORS.error, textAlign: 'center' }}>

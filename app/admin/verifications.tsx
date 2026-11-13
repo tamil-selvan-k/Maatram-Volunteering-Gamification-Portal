@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Image,
 } from 'react-native'
@@ -12,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { Check, X } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
+import { confirmAction, showAlert } from '@/lib/alert'
 import {
   usePendingVerifications,
   useApproveVerification,
@@ -31,37 +31,26 @@ const VerificationCard = memo(function VerificationCard({
   const isPending = isApproving || isRejecting
 
   const handleApprove = () => {
-    Alert.alert(
+    confirmAction(
       'Approve Verification',
       `Approve photo proof from ${item.volunteer_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Approve',
-          onPress: () =>
-            approve(item.id, {
-              onError: () => Alert.alert('Error', 'Failed to approve verification.'),
-            }),
-        },
-      ]
+      () =>
+        approve(item.id, {
+          onError: () => showAlert('Error', 'Failed to approve verification.'),
+        }),
+      { confirmLabel: 'Approve' }
     )
   }
 
   const handleReject = () => {
-    Alert.alert(
+    confirmAction(
       'Reject Verification',
       `Reject and remove photo proof from ${item.volunteer_name}? This cannot be undone.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Reject',
-          style: 'destructive',
-          onPress: () =>
-            reject(item.id, {
-              onError: () => Alert.alert('Error', 'Failed to reject verification.'),
-            }),
-        },
-      ]
+      () =>
+        reject(item.id, {
+          onError: () => showAlert('Error', 'Failed to reject verification.'),
+        }),
+      { destructive: true, confirmLabel: 'Reject' }
     )
   }
 

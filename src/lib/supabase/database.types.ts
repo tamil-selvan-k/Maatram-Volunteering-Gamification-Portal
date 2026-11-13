@@ -346,6 +346,10 @@ export type Database = {
         Args: { p_volunteer_id: string; p_opportunity_id: string }
         Returns: undefined
       }
+      get_selected_counts: {
+        Args: { opp_ids: string[] }
+        Returns: { opportunity_id: string; count: number }[]
+      }
     }
     Enums: Record<string, never>
   }

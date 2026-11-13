@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
-import { View, ActivityIndicator } from 'react-native'
 import { Stack, useRouter } from 'expo-router'
 import { useAuthStore, selectIsAdmin } from '@/stores/auth.store'
 import { COLORS } from '@/constants/theme'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 
 export default function AdminLayout() {
   const isAdmin   = useAuthStore(selectIsAdmin)
@@ -19,11 +19,7 @@ export default function AdminLayout() {
   }, [isLoading, volunteer, isAdmin, router])
 
   if (isLoading || volunteer === null) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={COLORS.gold} />
-      </View>
-    )
+    return <MaatramLoader />
   }
 
   if (!isAdmin) {

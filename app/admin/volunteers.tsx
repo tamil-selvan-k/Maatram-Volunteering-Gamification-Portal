@@ -7,11 +7,11 @@ import {
   ActivityIndicator,
   TextInput,
   Switch,
-  Alert,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { COLORS } from '@/constants/theme'
+import { confirmAction, showAlert } from '@/lib/alert'
 import { useVolunteers, useUpdateVolunteerAdmin } from '@/hooks/useAdmin'
 import type { Volunteer } from '@/types'
 
@@ -42,26 +42,21 @@ const VolunteerRow = memo(function VolunteerRow({ item }: { item: Volunteer }) {
   const { mutate: updateAdmin, isPending } = useUpdateVolunteerAdmin()
 
   const toggle = (field: 'is_admin' | 'do_not_contact' | 'is_active', value: boolean) => {
-    const labels: Record<string, string> = {
+    const labels = {
       is_admin:       value ? 'Grant admin access' : 'Revoke admin access',
       do_not_contact: value ? 'Mark Do Not Contact' : 'Remove Do Not Contact flag',
       is_active:      value ? 'Reactivate volunteer' : 'Deactivate volunteer',
-    }
-    Alert.alert(
-      labels[field],
-      `${labels[field]} for ${item.full_name}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: field === 'is_active' && !value ? 'destructive' : 'default',
-          onPress: () =>
-            updateAdmin(
-              { id: item.id, updates: { [field]: value } },
-              { onError: () => Alert.alert('Error', 'Failed to update volunteer.') }
-            ),
-        },
-      ]
+    } as const
+    const label = labels[field]
+    confirmAction(
+      label,
+      `${label} for ${item.full_name}?`,
+      () =>
+        updateAdmin(
+          { id: item.id, updates: { [field]: value } },
+          { onError: () => showAlert('Error', 'Failed to update volunteer.') }
+        ),
+      { destructive: field === 'is_active' && !value }
     )
   }
 

@@ -5,7 +5,6 @@ import {
   TextInput,
   TouchableOpacity,
   ScrollView,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import { useRouter } from 'expo-router'
 import { COLORS } from '@/constants/theme'
 import { ACTIVITY_LABELS } from '@/constants/activities'
 import { useCreateOpportunity, useActivityTypes } from '@/hooks/useAdmin'
+import { showAlert } from '@/lib/alert'
 import type { ActivityType } from '@/types'
 
 // ─── Form state ───────────────────────────────────────────────────────────────
@@ -82,35 +82,35 @@ export default function NewOpportunityScreen() {
 
   const handleSubmit = () => {
     if (!form.title.trim()) {
-      Alert.alert('Required', 'Title is required.')
+      showAlert('Required', 'Title is required.')
       return
     }
     if (!form.event_date) {
-      Alert.alert('Required', 'Event date is required.')
+      showAlert('Required', 'Event date is required.')
       return
     }
     const eventMs = new Date(form.event_date).getTime()
     if (isNaN(eventMs)) {
-      Alert.alert('Invalid Date', 'Event date format: YYYY-MM-DDTHH:MM (e.g. 2024-02-15T10:00)')
+      showAlert('Invalid Date', 'Event date format: YYYY-MM-DDTHH:MM (e.g. 2024-02-15T10:00)')
       return
     }
     const hours = parseFloat(form.duration_hours)
     if (isNaN(hours) || hours <= 0) {
-      Alert.alert('Required', 'Duration must be a positive number.')
+      showAlert('Required', 'Duration must be a positive number.')
       return
     }
     const slots = parseInt(form.total_slots, 10)
     if (isNaN(slots) || slots <= 0) {
-      Alert.alert('Required', 'Total slots must be a positive integer.')
+      showAlert('Required', 'Total slots must be a positive integer.')
       return
     }
     if (!form.registration_deadline) {
-      Alert.alert('Required', 'Registration deadline is required.')
+      showAlert('Required', 'Registration deadline is required.')
       return
     }
     const deadlineMs = new Date(form.registration_deadline).getTime()
     if (isNaN(deadlineMs)) {
-      Alert.alert('Invalid Date', 'Deadline format: YYYY-MM-DDTHH:MM (e.g. 2024-02-10T23:59)')
+      showAlert('Invalid Date', 'Deadline format: YYYY-MM-DDTHH:MM (e.g. 2024-02-10T23:59)')
       return
     }
 
@@ -140,7 +140,7 @@ export default function NewOpportunityScreen() {
         },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : 'Failed to create opportunity.'
-          Alert.alert('Error', msg)
+          showAlert('Error', msg)
         },
       }
     )

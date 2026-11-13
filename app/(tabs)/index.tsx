@@ -1,12 +1,12 @@
+import { useMemo, useCallback } from 'react'
 import { View, Text, FlatList, type ListRenderItem } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useOpportunities, useRegisterInterest } from '@/hooks/useOpportunities'
+import { useOpportunities, useRegisterInterest, useMyRegistrations, useSelectedCounts } from '@/hooks/useOpportunities'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard'
 import { LevelBadge } from '@/components/gamification/LevelBadge'
 import { StreakFlame } from '@/components/gamification/StreakFlame'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { useCallback } from 'react'
 import type { Opportunity } from '@/types'
 
 const ITEM_HEIGHT = 220
@@ -25,7 +25,19 @@ function HomeSkeleton() {
 export default function HomeScreen() {
   const volunteer = useAuthStore(selectVolunteer)
   const { data: opportunities, isLoading } = useOpportunities()
+  const { data: myRegs } = useMyRegistrations()
   const registerMutation = useRegisterInterest()
+
+  const oppIds = useMemo(() => (opportunities ?? []).map((o) => o.id), [opportunities])
+  const { data: selectedCounts } = useSelectedCounts(oppIds)
+
+  const regStatusMap = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const reg of myRegs ?? []) {
+      map.set(reg.opportunity_id, reg.status)
+    }
+    return map
+  }, [myRegs])
 
   const handleRegister = useCallback(
     (id: string) => {
@@ -40,9 +52,11 @@ export default function HomeScreen() {
         opportunity={item}
         onRegister={handleRegister}
         isRegistering={registerMutation.isPending && registerMutation.variables === item.id}
+        registrationStatus={(regStatusMap.get(item.id) as any) ?? null}
+        filledSlots={selectedCounts?.[item.id] ?? 0}
       />
     ),
-    [handleRegister, registerMutation.isPending, registerMutation.variables]
+    [handleRegister, registerMutation.isPending, registerMutation.variables, regStatusMap, selectedCounts]
   )
 
   const getItemLayout = useCallback(

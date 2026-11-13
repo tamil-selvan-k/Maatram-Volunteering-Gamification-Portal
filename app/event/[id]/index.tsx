@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { ScrollView, View, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { ScrollView, View, Text, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import {
@@ -13,7 +13,8 @@ import {
   LogIn,
   LogOut,
 } from 'lucide-react-native'
-import { useOpportunityById } from '@/hooks/useOpportunities'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
+import { useOpportunityById, useSelectedCounts } from '@/hooks/useOpportunities'
 import { useVerificationStatus } from '@/hooks/useVerification'
 import { useAuthStore, selectVolunteer, selectIsAdmin } from '@/stores/auth.store'
 import { VerificationBadge } from '@/components/verification/VerificationBadge'
@@ -54,6 +55,7 @@ export default function EventDetailScreen() {
   const isAdmin    = useAuthStore(selectIsAdmin)
 
   const { data: opp, isLoading: oppLoading } = useOpportunityById(id ?? '')
+  const { data: selectedCounts } = useSelectedCounts(id ? [id] : [])
 
   // registrationId may be passed as a query param or be absent
   const regId = registrationId ?? ''
@@ -99,11 +101,7 @@ export default function EventDetailScreen() {
   if (!id) return null
 
   if (oppLoading) {
-    return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <ActivityIndicator color={COLORS.gold} size="large" />
-      </SafeAreaView>
-    )
+    return <MaatramLoader />
   }
 
   if (!opp) {
@@ -205,7 +203,7 @@ export default function EventDetailScreen() {
             { Icon: Calendar, label: `${formatEventDate(opp.event_date)} at ${formatEventTime(opp.event_date)}` },
             { Icon: Clock, label: `${opp.duration_hours} hours` },
             { Icon: MapPin, label: opp.location ?? (opp.mode === 'online' ? 'Online event' : 'Location TBD') },
-            { Icon: Users, label: `${opp.total_slots} slots open` },
+            { Icon: Users, label: `${Math.max(0, opp.total_slots - (selectedCounts?.[opp.id] ?? 0))} of ${opp.total_slots} slots left` },
           ].map(({ Icon, label }) => (
             <View key={label} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <Icon size={16} color={COLORS.muted} />

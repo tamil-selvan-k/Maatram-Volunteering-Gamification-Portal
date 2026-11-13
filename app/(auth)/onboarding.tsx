@@ -1,4 +1,4 @@
-import { View, Text, ScrollView, Switch, Alert } from 'react-native'
+import { View, Text, ScrollView, Switch } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -9,6 +9,9 @@ import { ActivityBadge } from '@/components/ui/ActivityBadge'
 import { ACTIVITY_LABELS } from '@/constants/activities'
 import { supabase } from '@/lib/supabase/client'
 import { updateVolunteerProfile } from '@/services/volunteer.service'
+import { useAuthStore } from '@/stores/auth.store'
+import { useUIStore } from '@/stores/ui.store'
+import { showAlert } from '@/lib/alert'
 import type { ActivityType } from '@/types'
 
 const ACTIVITY_TYPES: ActivityType[] = [
@@ -53,7 +56,7 @@ export default function OnboardingScreen() {
   async function onSubmit(values: OnboardingFormValues) {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
-      Alert.alert('Error', 'Session expired. Please log in again.')
+      showAlert('Error', 'Session expired. Please log in again.')
       router.replace('/(auth)/login')
       return
     }
@@ -71,11 +74,17 @@ export default function OnboardingScreen() {
     })
 
     if (result.error) {
-      Alert.alert('Error', result.error.message)
+      showAlert('Error', result.error.message)
       return
     }
 
-    router.replace('/(tabs)')
+    if (result.data) {
+      useAuthStore.getState().setVolunteer(result.data)
+      useUIStore.getState().setNeedsOnboarding(false)
+      router.replace('/(tabs)')
+    } else {
+      showAlert('Error', 'Something went wrong saving your profile. Please try again.')
+    }
   }
 
   return (

@@ -1,8 +1,9 @@
 import { useCallback } from 'react'
-import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import { ArrowLeft } from 'lucide-react-native'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { QRDisplay } from '@/components/qr/QRDisplay'
 import { useOpportunityById } from '@/hooks/useOpportunities'
 import { useAuthStore, selectIsAdmin } from '@/stores/auth.store'
@@ -60,7 +61,7 @@ export default function QRDisplayScreen() {
         style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}
       >
         {isLoading ? (
-          <ActivityIndicator color={COLORS.gold} size="large" />
+          <MaatramLoader />
         ) : !opp ? (
           <Text style={{ color: COLORS.muted }}>Event not found.</Text>
         ) : !opp.qr_secret ? (

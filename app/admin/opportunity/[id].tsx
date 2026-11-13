@@ -4,16 +4,17 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { Trash2, Zap } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
+import { confirmAction, showAlert } from '@/lib/alert'
 import {
   useOpportunityRegistrations,
   useUpdateRegistrationStatus,
+  useDeleteRegistration,
   useDeleteOpportunity,
   useRunAllocation,
   useAdminOpportunity,
@@ -93,27 +94,42 @@ const RegistrationRow = memo(function RegistrationRow({
   item: AdminRegistrationRow
   opportunityId: string
 }) {
-  const { mutate: updateStatus, isPending } = useUpdateRegistrationStatus()
+  const { mutate: updateStatus, isPending: isUpdating } = useUpdateRegistrationStatus()
+  const { mutate: removeReg, isPending: isRemoving } = useDeleteRegistration()
+  const isPending = isUpdating || isRemoving
 
-  const handleAction = (status: 'selected' | 'declined') => {
-    Alert.alert(
-      `Mark as ${status}?`,
-      `Set ${item.volunteer_name}'s registration to "${status}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Confirm',
-          style: status === 'declined' ? 'destructive' : 'default',
-          onPress: () => {
-            updateStatus(
-              { registrationId: item.id, status, opportunityId },
-              {
-                onError: () => Alert.alert('Error', 'Failed to update status.'),
-              }
-            )
-          },
-        },
-      ]
+  const handleAction = (status: 'selected' | 'declined' | 'registered') => {
+    const labels: Record<string, { title: string; confirmLabel: string }> = {
+      selected:   { title: 'Select', confirmLabel: 'Select' },
+      declined:   { title: 'Decline', confirmLabel: 'Decline' },
+      registered: { title: 'Unselect', confirmLabel: 'Unselect' },
+    }
+    const label = labels[status] ?? { title: status, confirmLabel: status }
+
+    confirmAction(
+      `${label.title} ${item.volunteer_name}?`,
+      `Set registration status to "${status}"?`,
+      () => {
+        updateStatus(
+          { registrationId: item.id, status, opportunityId },
+          { onError: () => showAlert('Error', 'Failed to update status.') }
+        )
+      },
+      { destructive: status === 'declined', confirmLabel: label.confirmLabel }
+    )
+  }
+
+  const handleRemove = () => {
+    confirmAction(
+      `Remove ${item.volunteer_name}?`,
+      'This will permanently delete their registration. They would need to re-register.',
+      () => {
+        removeReg(
+          { registrationId: item.id, opportunityId },
+          { onError: () => showAlert('Error', 'Failed to remove registration.') }
+        )
+      },
+      { destructive: true, confirmLabel: 'Remove' }
     )
   }
 
@@ -143,9 +159,9 @@ const RegistrationRow = memo(function RegistrationRow({
         </View>
       </View>
 
-      {/* Action buttons */}
-      {(item.status === 'registered' || item.status === 'waitlisted') && (
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+      {/* Action buttons — vary by current status */}
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+        {(item.status === 'registered' || item.status === 'waitlisted') && (
           <TouchableOpacity
             onPress={() => handleAction('selected')}
             disabled={isPending}
@@ -161,10 +177,31 @@ const RegistrationRow = memo(function RegistrationRow({
               opacity: isPending ? 0.5 : 1,
             }}
           >
-            <Text style={{ color: COLORS.success, fontWeight: '600', fontSize: 13 }}>
-              Select
-            </Text>
+            <Text style={{ color: COLORS.success, fontWeight: '600', fontSize: 13 }}>Select</Text>
           </TouchableOpacity>
+        )}
+
+        {item.status === 'selected' && (
+          <TouchableOpacity
+            onPress={() => handleAction('registered')}
+            disabled={isPending}
+            activeOpacity={0.7}
+            style={{
+              flex: 1,
+              paddingVertical: 8,
+              borderRadius: 10,
+              alignItems: 'center',
+              backgroundColor: `${COLORS.warning}20`,
+              borderWidth: 1,
+              borderColor: `${COLORS.warning}50`,
+              opacity: isPending ? 0.5 : 1,
+            }}
+          >
+            <Text style={{ color: COLORS.warning, fontWeight: '600', fontSize: 13 }}>Unselect</Text>
+          </TouchableOpacity>
+        )}
+
+        {(item.status === 'registered' || item.status === 'waitlisted') && (
           <TouchableOpacity
             onPress={() => handleAction('declined')}
             disabled={isPending}
@@ -180,12 +217,29 @@ const RegistrationRow = memo(function RegistrationRow({
               opacity: isPending ? 0.5 : 1,
             }}
           >
-            <Text style={{ color: COLORS.error, fontWeight: '600', fontSize: 13 }}>
-              Reject
-            </Text>
+            <Text style={{ color: COLORS.error, fontWeight: '600', fontSize: 13 }}>Reject</Text>
           </TouchableOpacity>
-        </View>
-      )}
+        )}
+
+        {/* Remove — available for all statuses */}
+        <TouchableOpacity
+          onPress={handleRemove}
+          disabled={isPending}
+          activeOpacity={0.7}
+          style={{
+            paddingVertical: 8,
+            paddingHorizontal: 12,
+            borderRadius: 10,
+            alignItems: 'center',
+            backgroundColor: `${COLORS.error}10`,
+            borderWidth: 1,
+            borderColor: `${COLORS.error}30`,
+            opacity: isPending ? 0.5 : 1,
+          }}
+        >
+          <Trash2 size={14} color={COLORS.error} />
+        </TouchableOpacity>
+      </View>
     </View>
   )
 })
@@ -204,46 +258,35 @@ export default function OpportunityDetailScreen() {
   const totalSelected = registrations.filter((r) => r.status === 'selected').length
 
   const handleDelete = () => {
-    Alert.alert(
+    confirmAction(
       'Delete Opportunity',
       'This will permanently delete this opportunity and all its registrations. This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            doDelete(id ?? '', {
-              onSuccess: () => router.replace('/admin' as never),
-              onError: () => Alert.alert('Error', 'Failed to delete opportunity.'),
-            })
-          },
-        },
-      ]
+      () => {
+        doDelete(id ?? '', {
+          onSuccess: () => router.replace('/admin' as never),
+          onError: () => showAlert('Error', 'Failed to delete opportunity.'),
+        })
+      },
+      { destructive: true, confirmLabel: 'Delete' }
     )
   }
 
   const handleRunAllocation = () => {
-    Alert.alert(
+    confirmAction(
       'Run Allocation',
       `This will run the priority algorithm on ${totalApplicants} registered applicant(s) and assign selected/waitlisted statuses.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Run',
-          onPress: () => {
-            doAllocate(id ?? '', {
-              onSuccess: (result) => {
-                Alert.alert(
-                  'Allocation Complete',
-                  `Selected: ${result?.selected.length ?? 0}  •  Waitlisted: ${result?.waitlisted.length ?? 0}`
-                )
-              },
-              onError: () => Alert.alert('Error', 'Failed to run allocation.'),
-            })
+      () => {
+        doAllocate(id ?? '', {
+          onSuccess: (result) => {
+            showAlert(
+              'Allocation Complete',
+              `Selected: ${result?.selected.length ?? 0}  •  Waitlisted: ${result?.waitlisted.length ?? 0}`
+            )
           },
-        },
-      ]
+          onError: () => showAlert('Error', 'Failed to run allocation.'),
+        })
+      },
+      { confirmLabel: 'Run' }
     )
   }
 
@@ -271,7 +314,7 @@ export default function OpportunityDetailScreen() {
           borderBottomColor: COLORS.border,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/admin' as never)} activeOpacity={0.7}>
           <Text style={{ color: COLORS.gold, fontSize: 15, fontWeight: '600' }}>← Back</Text>
         </TouchableOpacity>
         <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 16 }}>

@@ -1,4 +1,5 @@
-import { View, Text, ScrollView, Switch, Alert, TextInput, TouchableOpacity, Pressable } from 'react-native'
+import { View, Text, ScrollView, Switch, TextInput, TouchableOpacity, Pressable } from 'react-native'
+import { showAlert } from '@/lib/alert'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -200,10 +201,10 @@ export default function ProfileScreen() {
       employer_org: values.employer_org || null,
     })
     if (result.error) {
-      Alert.alert('Error', result.error.message)
+      showAlert('Error', result.error.message)
     } else {
       setVolunteer(result.data)
-      Alert.alert('Saved', 'Your profile has been updated.')
+      showAlert('Saved', 'Your profile has been updated.')
     }
   }
 

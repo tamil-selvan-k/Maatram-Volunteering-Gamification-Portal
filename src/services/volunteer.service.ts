@@ -35,7 +35,7 @@ export async function upsertVolunteerFromAuth(
         consent_push: true,
         consent_email: true,
         consent_linkedin: false,
-        reliability_score: 100,
+        reliability_score: 1.0,
         total_points: 0,
         level: 1,
         streak_months: 0,

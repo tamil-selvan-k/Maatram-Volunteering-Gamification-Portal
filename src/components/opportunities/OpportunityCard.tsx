@@ -1,18 +1,20 @@
 import React, { memo, useCallback } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { router } from 'expo-router'
-import { Calendar, Clock, Users, Globe, Building2, MapPin } from 'lucide-react-native'
+import { Calendar, Clock, Users, Globe, Building2, MapPin, CheckCircle } from 'lucide-react-native'
 import { ActivityBadge } from '@/components/ui/ActivityBadge'
 import { Button } from '@/components/ui/Button'
 import { ACTIVITY_STYLES } from '@/constants/activities'
 import { formatTimeLeft, formatEventDate, formatEventTime } from '@/utils'
 import { COLORS } from '@/constants/theme'
-import type { Opportunity } from '@/types'
+import type { Opportunity, RegistrationStatus } from '@/types'
 
 interface OpportunityCardProps {
   opportunity: Opportunity
   onRegister: (id: string) => void
   isRegistering?: boolean
+  registrationStatus?: RegistrationStatus | null
+  filledSlots?: number
 }
 
 function slotColor(slots: number): string {
@@ -27,10 +29,20 @@ function deadlineBadgeColors(timeLeft: string): { bg: string; text: string } {
   return { bg: COLORS.surfaceElevated, text: '#FACC15' }
 }
 
+const STATUS_LABELS: Partial<Record<RegistrationStatus, { label: string; color: string }>> = {
+  registered: { label: 'Registered', color: COLORS.success },
+  selected:   { label: 'Selected',   color: COLORS.success },
+  waitlisted: { label: 'Waitlisted', color: COLORS.warning },
+  declined:   { label: 'Declined',   color: COLORS.error },
+  no_show:    { label: 'No Show',    color: COLORS.error },
+}
+
 export const OpportunityCard = memo(function OpportunityCard({
   opportunity: opp,
   onRegister,
   isRegistering = false,
+  registrationStatus,
+  filledSlots = 0,
 }: OpportunityCardProps) {
   const handleRegister = useCallback(() => {
     onRegister(opp.id)
@@ -43,6 +55,7 @@ export const OpportunityCard = memo(function OpportunityCard({
   const timeLeft = formatTimeLeft(opp.registration_deadline)
   const deadlineColors = deadlineBadgeColors(timeLeft)
   const accentColor = ACTIVITY_STYLES[opp.activity_type].accent
+  const remaining = Math.max(0, opp.total_slots - filledSlots)
 
   return (
     <View className="bg-surface border border-border rounded-2xl mb-3 overflow-hidden flex-row">
@@ -109,12 +122,31 @@ export const OpportunityCard = memo(function OpportunityCard({
         {/* Footer row — outside the card TouchableOpacity so Register doesn't navigate */}
         <View className="flex-row items-center justify-between px-4 py-3">
           <View className="flex-row items-center gap-1.5">
-            <Users size={14} color={slotColor(opp.total_slots)} />
-            <Text className="text-xs font-semibold" style={{ color: slotColor(opp.total_slots) }}>
-              {opp.total_slots} slots
+            <Users size={14} color={slotColor(remaining)} />
+            <Text className="text-xs font-semibold" style={{ color: slotColor(remaining) }}>
+              {remaining} of {opp.total_slots} slots left
             </Text>
           </View>
-          <Button title="Register" size="sm" loading={isRegistering} onPress={handleRegister} />
+          {registrationStatus ? (
+            <View
+              className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
+              style={{
+                backgroundColor: (STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted) + '20',
+                borderWidth: 1,
+                borderColor: (STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted) + '50',
+              }}
+            >
+              <CheckCircle size={12} color={STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted} />
+              <Text
+                className="text-xs font-semibold"
+                style={{ color: STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted }}
+              >
+                {STATUS_LABELS[registrationStatus]?.label ?? registrationStatus}
+              </Text>
+            </View>
+          ) : (
+            <Button title="Register" size="sm" loading={isRegistering} onPress={handleRegister} />
+          )}
         </View>
       </View>
     </View>

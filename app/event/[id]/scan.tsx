@@ -1,8 +1,9 @@
 import { useCallback } from 'react'
-import { View, Text, ActivityIndicator } from 'react-native'
+import { View, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
 import * as Location from 'expo-location'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { QRScanner } from '@/components/qr/QRScanner'
 import { useOpportunityById } from '@/hooks/useOpportunities'
 import { useVerificationStatus, useCheckIn, useCheckOut } from '@/hooks/useVerification'
@@ -93,13 +94,7 @@ export default function ScanScreen() {
   }
 
   if (isLoading) {
-    return (
-      <SafeAreaView
-        style={{ flex: 1, backgroundColor: COLORS.bg, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <ActivityIndicator color={COLORS.gold} size="large" />
-      </SafeAreaView>
-    )
+    return <MaatramLoader />
   }
 
   return (

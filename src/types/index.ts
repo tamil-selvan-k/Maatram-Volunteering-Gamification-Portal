@@ -78,6 +78,7 @@ export interface Opportunity {
   mandatory_skills: string[]
   status: OpportunityStatus
   qr_secret: string | null
+  qr_mode: 'rotating' | 'static'
   created_by: string
   created_at: string
 }

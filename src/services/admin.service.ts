@@ -265,6 +265,12 @@ export async function getOpportunityRegistrations(
   }
 }
 
+const STATUS_NOTIFICATION_MAP: Partial<Record<RegistrationStatus, { title: string; body: string }>> = {
+  selected:   { title: 'You have been selected!', body: 'You\'ve been selected for an event. Check the event page for details.' },
+  waitlisted: { title: 'You are waitlisted', body: 'You\'ve been waitlisted for an event. We\'ll notify you if a slot opens up.' },
+  declined:   { title: 'Registration declined', body: 'Unfortunately, your registration was not accepted this time. Keep volunteering!' },
+}
+
 export async function updateRegistrationStatus(
   registrationId: string,
   status: RegistrationStatus
@@ -274,12 +280,24 @@ export async function updateRegistrationStatus(
       .from('registrations')
       .update({ status })
       .eq('id', registrationId)
-      .select('id')
+      .select('id, volunteer_id')
 
     if (error) return { data: null, error: toAppError(error) }
     if (!data || data.length === 0) {
       return { data: null, error: toAppError(new Error('Update failed — you may not have permission. Ask an org admin to apply the registrations UPDATE policy.')) }
     }
+
+    const notif = STATUS_NOTIFICATION_MAP[status]
+    if (notif && data[0]) {
+      const row = data[0] as { id: string; volunteer_id: string }
+      await supabase.from('notifications').insert({
+        volunteer_id: row.volunteer_id,
+        title: notif.title,
+        body: notif.body,
+        type: 'selection',
+      })
+    }
+
     return { data: undefined, error: null }
   } catch (err) {
     return { data: null, error: toAppError(err) }
@@ -322,6 +340,12 @@ export type UpdateOpportunityInput = Partial<CreateOpportunityInput> & {
   status?: OpportunityStatus
 }
 
+function generateQRSecret(): string {
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+}
+
 export async function createOpportunity(
   input: CreateOpportunityInput
 ): Promise<Result<Opportunity>> {
@@ -336,7 +360,12 @@ export async function createOpportunity(
 
     const { data, error } = await supabase
       .from('opportunities')
-      .insert({ ...input, created_by: user.id, status: 'open' as OpportunityStatus })
+      .insert({
+        ...input,
+        created_by: user.id,
+        status: 'open' as OpportunityStatus,
+        qr_secret: generateQRSecret(),
+      })
       .select('*')
       .single()
 
@@ -656,7 +685,7 @@ export async function runAllocation(
     // 1. Fetch opportunity
     const { data: oppData, error: oppErr } = await supabase
       .from('opportunities')
-      .select('id, total_slots, activity_type, required_skills, mandatory_skills')
+      .select('id, title, total_slots, activity_type, required_skills, mandatory_skills')
       .eq('id', opportunityId)
       .single()
 
@@ -666,6 +695,7 @@ export async function runAllocation(
 
     const opp = oppData as {
       id: string
+      title: string
       total_slots: number
       activity_type: string
       required_skills: string[]
@@ -837,6 +867,35 @@ export async function runAllocation(
       }
     }
 
+    // 10. Send in-app notifications to selected & waitlisted volunteers
+    const notifications: Array<{
+      volunteer_id: string
+      title: string
+      body: string
+      type: string
+    }> = []
+
+    for (const volId of result.selected) {
+      notifications.push({
+        volunteer_id: volId,
+        title: 'You have been selected!',
+        body: `You've been selected for "${opp.title}". Check the event page for details.`,
+        type: 'selection',
+      })
+    }
+    for (const volId of result.waitlisted) {
+      notifications.push({
+        volunteer_id: volId,
+        title: 'You are waitlisted',
+        body: `You've been waitlisted for "${opp.title}". We'll notify you if a slot opens up.`,
+        type: 'selection',
+      })
+    }
+
+    if (notifications.length > 0) {
+      await supabase.from('notifications').insert(notifications)
+    }
+
     return { data: { selected: result.selected, waitlisted: result.waitlisted }, error: null }
   } catch (err) {
     return { data: null, error: toAppError(err) }
@@ -944,6 +1003,168 @@ export async function createActivityType(
 
     if (error) return { data: null, error: toAppError(error) }
     return { data: data as ActivityTypeRow, error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
+// ─── Volunteer profile (admin view) ──────────────────────────────────────────
+
+export interface VolunteerRegistrationHistory {
+  id: string
+  opportunity_id: string
+  opportunity_title: string
+  activity_type: string
+  event_date: string
+  status: RegistrationStatus
+  verification_level: string | null
+  verified_hours: number | null
+  points_awarded: number | null
+  checkin_time: string | null
+  checkout_time: string | null
+}
+
+export interface VolunteerProfileData {
+  volunteer: Volunteer
+  registrations: VolunteerRegistrationHistory[]
+  badges: Array<{ id: string; badge_type: string; badge_name: string; earned_at: string }>
+  totalHours: number
+  totalRegistrations: number
+  hasMoreRegistrations: boolean
+}
+
+export async function getVolunteerProfile(
+  volunteerId: string,
+  page = 1,
+  pageSize = 15
+): Promise<Result<VolunteerProfileData>> {
+  try {
+    const from = (page - 1) * pageSize
+    const to = from + pageSize - 1
+
+    const { data: volunteer, error: volErr } = await supabase
+      .from('volunteers')
+      .select('*')
+      .eq('id', volunteerId)
+      .single()
+
+    if (volErr || !volunteer) {
+      return { data: null, error: toAppError(volErr ?? new Error('Volunteer not found')) }
+    }
+
+    const [
+      { data: regs, error: regErr, count: regCount },
+      { data: allRegData },
+    ] = await Promise.all([
+      supabase
+        .from('registrations')
+        .select('id, opportunity_id, status, registered_at', { count: 'exact' })
+        .eq('volunteer_id', volunteerId)
+        .order('registered_at', { ascending: false })
+        .range(from, to),
+      supabase
+        .from('registrations')
+        .select('id')
+        .eq('volunteer_id', volunteerId),
+    ])
+
+    if (regErr) return { data: null, error: toAppError(regErr) }
+
+    const registrations = (regs ?? []) as Array<{
+      id: string
+      opportunity_id: string
+      status: RegistrationStatus
+      registered_at: string
+    }>
+
+    const totalRegistrations = regCount ?? 0
+    const hasMoreRegistrations = totalRegistrations > to + 1
+    const allRegIds = (allRegData ?? []).map((r: { id: string }) => r.id)
+
+    let historyRows: VolunteerRegistrationHistory[] = []
+
+    const oppIds = registrations.length > 0
+      ? [...new Set(registrations.map((r) => r.opportunity_id))]
+      : []
+    const regIds = registrations.map((r) => r.id)
+
+    const [oppResult, verResult, allVersResult, badgesResult] = await Promise.all([
+      oppIds.length > 0
+        ? supabase
+            .from('opportunities')
+            .select('id, title, activity_type, event_date')
+            .in('id', oppIds)
+        : Promise.resolve({ data: [] as Array<{ id: string; title: string; activity_type: string; event_date: string }>, error: null }),
+      regIds.length > 0
+        ? supabase
+            .from('verifications')
+            .select('registration_id, verification_level, verified_hours, points_awarded, checkin_time, checkout_time')
+            .in('registration_id', regIds)
+        : Promise.resolve({ data: [] as Array<{ registration_id: string; verification_level: string; verified_hours: number | null; points_awarded: number | null; checkin_time: string | null; checkout_time: string | null }> }),
+      allRegIds.length > 0
+        ? supabase
+            .from('verifications')
+            .select('verified_hours')
+            .in('registration_id', allRegIds)
+        : Promise.resolve({ data: [] as Array<{ verified_hours: number | null }> }),
+      supabase
+        .from('badges')
+        .select('id, badge_type, badge_name, earned_at')
+        .eq('volunteer_id', volunteerId)
+        .order('earned_at', { ascending: false }),
+    ])
+
+    if (oppResult.error) return { data: null, error: toAppError(oppResult.error) }
+
+    if (registrations.length > 0) {
+      const oppMap = new Map(
+        ((oppResult.data ?? []) as Array<{ id: string; title: string; activity_type: string; event_date: string }>)
+          .map((o) => [o.id, o])
+      )
+      const verMap = new Map(
+        ((verResult.data ?? []) as Array<{
+          registration_id: string
+          verification_level: string
+          verified_hours: number | null
+          points_awarded: number | null
+          checkin_time: string | null
+          checkout_time: string | null
+        }>).map((v) => [v.registration_id, v])
+      )
+
+      historyRows = registrations.map((reg) => {
+        const opp = oppMap.get(reg.opportunity_id)
+        const ver = verMap.get(reg.id)
+        return {
+          id: reg.id,
+          opportunity_id: reg.opportunity_id,
+          opportunity_title: opp?.title ?? 'Unknown',
+          activity_type: opp?.activity_type ?? '',
+          event_date: opp?.event_date ?? '',
+          status: reg.status,
+          verification_level: ver?.verification_level ?? null,
+          verified_hours: ver?.verified_hours ?? null,
+          points_awarded: ver?.points_awarded ?? null,
+          checkin_time: ver?.checkin_time ?? null,
+          checkout_time: ver?.checkout_time ?? null,
+        }
+      })
+    }
+
+    const totalHours = ((allVersResult.data ?? []) as Array<{ verified_hours: number | null }>)
+      .reduce((sum, v) => sum + (v.verified_hours ?? 0), 0)
+
+    return {
+      data: {
+        volunteer: volunteer as Volunteer,
+        registrations: historyRows,
+        badges: (badgesResult.data ?? []) as Array<{ id: string; badge_type: string; badge_name: string; earned_at: string }>,
+        totalHours: Math.round(totalHours * 10) / 10,
+        totalRegistrations,
+        hasMoreRegistrations,
+      },
+      error: null,
+    }
   } catch (err) {
     return { data: null, error: toAppError(err) }
   }

@@ -11,6 +11,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { COLORS } from '@/constants/theme'
 import { ACTIVITY_LABELS } from '@/constants/activities'
 import { useAdminOpportunity, useUpdateOpportunity, useActivityTypes } from '@/hooks/useAdmin'
@@ -198,7 +199,7 @@ export default function EditOpportunityScreen() {
       {
         onSuccess: () => {
           showAlert('Saved!', 'Opportunity updated successfully.')
-          router.back()
+          safeGoBack(router)
         },
         onError: (err: unknown) => {
           const msg = err instanceof Error ? err.message : 'Failed to update opportunity.'
@@ -238,7 +239,7 @@ export default function EditOpportunityScreen() {
             borderBottomColor: COLORS.border,
           }}
         >
-          <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => safeGoBack(router)} activeOpacity={0.7}>
             <Text style={{ color: COLORS.gold, fontSize: 15, fontWeight: '600' }}>← Back</Text>
           </TouchableOpacity>
           <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 17 }}>

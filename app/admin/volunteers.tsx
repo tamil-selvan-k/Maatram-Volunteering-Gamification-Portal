@@ -10,6 +10,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { COLORS } from '@/constants/theme'
 import { confirmAction, showAlert } from '@/lib/alert'
 import { useVolunteers, useUpdateVolunteerAdmin } from '@/hooks/useAdmin'
@@ -38,7 +39,13 @@ function LevelBadge({ level }: { level: number }) {
 
 // ─── Volunteer row ────────────────────────────────────────────────────────────
 
-const VolunteerRow = memo(function VolunteerRow({ item }: { item: Volunteer }) {
+const VolunteerRow = memo(function VolunteerRow({
+  item,
+  onViewProfile,
+}: {
+  item: Volunteer
+  onViewProfile: (id: string) => void
+}) {
   const { mutate: updateAdmin, isPending } = useUpdateVolunteerAdmin()
 
   const toggle = (field: 'is_admin' | 'do_not_contact' | 'is_active', value: boolean) => {
@@ -61,7 +68,9 @@ const VolunteerRow = memo(function VolunteerRow({ item }: { item: Volunteer }) {
   }
 
   return (
-    <View
+    <TouchableOpacity
+      onPress={() => onViewProfile(item.id)}
+      activeOpacity={0.8}
       style={{
         backgroundColor: COLORS.surface,
         borderWidth: 1,
@@ -177,7 +186,7 @@ const VolunteerRow = memo(function VolunteerRow({ item }: { item: Volunteer }) {
           </View>
         ))}
       </View>
-    </View>
+    </TouchableOpacity>
   )
 })
 
@@ -198,9 +207,18 @@ export default function VolunteersScreen() {
 
   const { data: result, isLoading } = useVolunteers(page, debouncedSearch || undefined)
 
+  const handleViewProfile = useCallback(
+    (volunteerId: string) => {
+      router.push(`/admin/volunteer/${volunteerId}` as never)
+    },
+    [router]
+  )
+
   const renderItem = useCallback(
-    ({ item }: { item: Volunteer }) => <VolunteerRow item={item} />,
-    []
+    ({ item }: { item: Volunteer }) => (
+      <VolunteerRow item={item} onViewProfile={handleViewProfile} />
+    ),
+    [handleViewProfile]
   )
 
   return (
@@ -216,7 +234,7 @@ export default function VolunteersScreen() {
           borderBottomColor: COLORS.border,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => safeGoBack(router)} activeOpacity={0.7}>
           <Text style={{ color: COLORS.gold, fontSize: 15, fontWeight: '600' }}>← Back</Text>
         </TouchableOpacity>
         <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 17 }}>

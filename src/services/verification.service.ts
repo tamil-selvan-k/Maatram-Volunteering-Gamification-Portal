@@ -28,7 +28,6 @@ export async function checkIn(
 ): Promise<Result<Verification>> {
   try {
     const now = new Date().toISOString()
-    const locationStr = location ? `POINT(${location.lng} ${location.lat})` : null
 
     const { data, error } = await supabase
       .from('verifications')
@@ -36,8 +35,6 @@ export async function checkIn(
         {
           registration_id: registrationId,
           checkin_time: now,
-          checkin_location: locationStr,
-          qr_payload: qrPayload,
           verification_level: 'qr_partial',
         },
         { onConflict: 'registration_id' }
@@ -82,13 +79,11 @@ export async function checkOut(
 
     const peerConfirms = existing.peer_confirms ?? 0
     const level = peerConfirms >= 2 ? 'qr_peer' : 'qr_full'
-    const locationStr = location ? `POINT(${location.lng} ${location.lat})` : null
 
     const { data, error } = await supabase
       .from('verifications')
       .update({
         checkout_time: now.toISOString(),
-        checkout_location: locationStr,
         verified_hours: verifiedHours,
         verification_level: level,
       })
@@ -130,13 +125,10 @@ export async function uploadPhotoProof(
       data: { publicUrl },
     } = supabase.storage.from('proofs').getPublicUrl(path)
 
-    const locationStr = location ? `POINT(${location.lng} ${location.lat})` : null
-
     const { error: updateError } = await supabase
       .from('verifications')
       .update({
         photo_url: publicUrl,
-        photo_location: locationStr,
         verification_level: 'photo_pending',
       })
       .eq('registration_id', registrationId)

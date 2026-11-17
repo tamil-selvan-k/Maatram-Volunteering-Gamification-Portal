@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { ArrowLeft } from 'lucide-react-native'
 import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { PeerConfirmList } from '@/components/verification/PeerConfirmList'
@@ -16,14 +17,14 @@ export default function PeerConfirmScreen() {
 
   const { peersQuery, confirmMutation } = usePeerConfirmation(id ?? '')
 
-  const handleBack = useCallback(() => router.back(), [])
+  const handleBack = useCallback(() => safeGoBack(), [])
 
   const handleSubmit = useCallback(
     async (selectedIds: string[]) => {
       for (const confirmedId of selectedIds) {
         await confirmMutation.mutateAsync({ confirmedId })
       }
-      router.back()
+      safeGoBack()
     },
     [confirmMutation]
   )

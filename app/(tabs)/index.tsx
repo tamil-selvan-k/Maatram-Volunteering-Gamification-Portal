@@ -1,7 +1,7 @@
 import { useMemo, useCallback } from 'react'
 import { View, Text, FlatList, type ListRenderItem } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useOpportunities, useRegisterInterest, useMyRegistrations, useSelectedCounts } from '@/hooks/useOpportunities'
+import { useOpportunities, useRegisterInterest, useMyRegistrations, useMyEvents, useSelectedCounts } from '@/hooks/useOpportunities'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { OpportunityCard } from '@/components/opportunities/OpportunityCard'
 import { LevelBadge } from '@/components/gamification/LevelBadge'
@@ -26,10 +26,17 @@ export default function HomeScreen() {
   const volunteer = useAuthStore(selectVolunteer)
   const { data: opportunities, isLoading } = useOpportunities()
   const { data: myRegs } = useMyRegistrations()
+  const { data: myEvents } = useMyEvents()
   const registerMutation = useRegisterInterest()
 
-  const oppIds = useMemo(() => (opportunities ?? []).map((o) => o.id), [opportunities])
-  const { data: selectedCounts } = useSelectedCounts(oppIds)
+  const allOppIds = useMemo(() => {
+    const ids = new Set<string>()
+    for (const o of opportunities ?? []) ids.add(o.id)
+    for (const o of myEvents ?? []) ids.add(o.id)
+    return [...ids]
+  }, [opportunities, myEvents])
+
+  const { data: selectedCounts } = useSelectedCounts(allOppIds)
 
   const regStatusMap = useMemo(() => {
     const map = new Map<string, string>()
@@ -38,6 +45,12 @@ export default function HomeScreen() {
     }
     return map
   }, [myRegs])
+
+  const myRegisteredEvents = useMemo(() => {
+    if (!myEvents) return []
+    const openIds = new Set((opportunities ?? []).map((o) => o.id))
+    return myEvents.filter((e) => !openIds.has(e.id))
+  }, [myEvents, opportunities])
 
   const handleRegister = useCallback(
     (id: string) => {
@@ -82,6 +95,25 @@ export default function HomeScreen() {
           {volunteer && <StreakFlame months={volunteer.streak_months} />}
         </View>
       </View>
+
+      {/* My Events section */}
+      {myRegisteredEvents.length > 0 && (
+        <View className="mt-3">
+          <Text className="text-gold font-semibold text-sm mb-2">My events</Text>
+          {myRegisteredEvents.map((event) => (
+            <View key={event.id} className="mb-3">
+              <OpportunityCard
+                opportunity={event}
+                onRegister={handleRegister}
+                isRegistering={false}
+                registrationStatus={(regStatusMap.get(event.id) as any) ?? null}
+                filledSlots={selectedCounts?.[event.id] ?? 0}
+              />
+            </View>
+          ))}
+        </View>
+      )}
+
       <Text className="text-gold font-semibold text-sm mt-3 mb-1">Upcoming opportunities</Text>
     </View>
   )

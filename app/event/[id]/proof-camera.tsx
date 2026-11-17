@@ -1,6 +1,7 @@
 import { useCallback } from 'react'
 import { View, Text } from 'react-native'
-import { useLocalSearchParams, router } from 'expo-router'
+import { useLocalSearchParams } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { ProofCamera } from '@/components/camera/ProofCamera'
 import { usePhotoProof } from '@/hooks/useVerification'
 import { COLORS } from '@/constants/theme'
@@ -21,12 +22,12 @@ export default function ProofCameraScreen() {
       const result = await photoProofMutation.mutateAsync({ photoUri, location })
       if (result.error) throw new Error(result.error.message)
       // Navigate back after success
-      router.back()
+      safeGoBack()
     },
     [regId, photoProofMutation]
   )
 
-  const handleClose = useCallback(() => router.back(), [])
+  const handleClose = useCallback(() => safeGoBack(), [])
 
   if (!id || !regId) {
     return (

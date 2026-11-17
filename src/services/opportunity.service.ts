@@ -85,6 +85,35 @@ export async function getMyRegistrations(
   }
 }
 
+export async function getMyEvents(
+  volunteerId: string
+): Promise<Result<Opportunity[]>> {
+  try {
+    const { data: regs, error: regErr } = await supabase
+      .from('registrations')
+      .select('opportunity_id')
+      .eq('volunteer_id', volunteerId)
+      .not('status', 'in', '(declined,no_show)')
+
+    if (regErr) return { data: null, error: toAppError(regErr) }
+    const ids = (regs ?? []).map((r) => r.opportunity_id)
+    if (ids.length === 0) return { data: [], error: null }
+
+    const { data, error } = await supabase
+      .from('opportunities')
+      .select('*')
+      .in('id', ids)
+      .not('status', 'in', '(completed,cancelled)')
+      .gte('event_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .order('event_date', { ascending: true })
+
+    if (error) return { data: null, error: toAppError(error) }
+    return { data: data as Opportunity[], error: null }
+  } catch (err) {
+    return { data: null, error: toAppError(err) }
+  }
+}
+
 export async function getSelectedCounts(
   opportunityIds: string[]
 ): Promise<Result<Record<string, number>>> {

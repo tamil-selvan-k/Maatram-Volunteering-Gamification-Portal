@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { useOpportunities } from '@/hooks/useOpportunities'
 import { COLORS } from '@/constants/theme'
 
@@ -279,7 +280,7 @@ export default function DemoScreen() {
 
         {/* Back link */}
         <TouchableOpacity
-          onPress={() => router.back()}
+          onPress={() => safeGoBack(router)}
           activeOpacity={0.7}
           style={{ marginTop: 24, alignItems: 'center' }}
         >

@@ -1,21 +1,16 @@
 /**
- * TOTP-style rotating QR code payload generation & verification.
+ * QR code payload generation & verification — supports two modes:
  *
- * DESIGN NOTE (hackathon simplification):
- *   Instead of full HMAC-SHA256 (which requires HMAC-SHA256(key, msg) =
- *   SHA256((key XOR opad) || SHA256((key XOR ipad) || msg))), we use:
+ *   "rotating" — TOTP-style, rotates every 5 minutes (anti-screenshot).
+ *                Requires admin to keep a phone displaying the QR at the venue.
  *
- *     token = SHA256(secret + "|" + eventId + "|" + windowTs)
- *
- *   This is a keyed hash (not strictly HMAC) but sufficient for the
- *   anti-spoofing goal of this hackathon demo.  For production, swap in a
- *   proper HMAC implementation via a backend edge-function.
- *
- * Rotation window: floor(unix_seconds / 300) — rotates every 5 minutes.
- * Grace period: ±1 window (allows ≤5 min clock skew between devices).
+ *   "static"  — Fixed QR that never changes. Can be printed and pasted at the
+ *                gate so no one needs to stand there. Less secure but practical.
  *
  * Uses Web Crypto API (available in React Native Hermes ≥ 0.71).
  */
+
+export type QRMode = 'rotating' | 'static'
 
 /** Current TOTP window index (5-minute bucket). */
 function currentWindow(): number {
@@ -40,25 +35,30 @@ async function sha256(data: string): Promise<string> {
 
 export interface QRPayload {
   event_id: string
+  mode: QRMode
   window: number
   hmac: string
 }
 
 /**
- * Generate a base64-encoded QR payload for the current 5-minute window.
+ * Generate a base64-encoded QR payload.
+ * In "static" mode, window is always 0 and the hash is time-independent.
  */
-export async function generateQRPayload(eventId: string, secret: string): Promise<string> {
-  const win = currentWindow()
-  const hmac = await sha256(`${secret}|${eventId}|${win}`)
-  const payload: QRPayload = { event_id: eventId, window: win, hmac }
+export async function generateQRPayload(
+  eventId: string,
+  secret: string,
+  mode: QRMode = 'rotating'
+): Promise<string> {
+  const win = mode === 'static' ? 0 : currentWindow()
+  const hmac = await sha256(`${secret}|${eventId}|${mode}|${win}`)
+  const payload: QRPayload = { event_id: eventId, mode, window: win, hmac }
   return btoa(JSON.stringify(payload))
 }
 
 /**
  * Verify a scanned QR payload.
- * Accepts the current window and ±1 for clock-skew tolerance.
- *
- * @returns `{ valid, windowDrift }` — windowDrift is 0 for exact, ±1 for skew.
+ * Static payloads are always valid (no time check).
+ * Rotating payloads accept ±1 window for clock-skew tolerance.
  */
 export async function verifyQRPayload(
   rawPayload: string,
@@ -76,7 +76,6 @@ export async function verifyQRPayload(
     !parsed ||
     typeof parsed !== 'object' ||
     !('event_id' in parsed) ||
-    !('window' in parsed) ||
     !('hmac' in parsed)
   ) {
     return { valid: false, windowDrift: 0 }
@@ -86,10 +85,16 @@ export async function verifyQRPayload(
 
   if (p.event_id !== eventId) return { valid: false, windowDrift: 0 }
 
-  const win = currentWindow()
+  const mode: QRMode = p.mode ?? 'rotating'
 
+  if (mode === 'static') {
+    const expectedHmac = await sha256(`${secret}|${eventId}|static|0`)
+    return { valid: expectedHmac === p.hmac, windowDrift: 0 }
+  }
+
+  const win = currentWindow()
   for (const drift of [0, 1, -1] as const) {
-    const expectedHmac = await sha256(`${secret}|${eventId}|${win + drift}`)
+    const expectedHmac = await sha256(`${secret}|${eventId}|rotating|${win + drift}`)
     if (expectedHmac === p.hmac) {
       return { valid: true, windowDrift: drift }
     }

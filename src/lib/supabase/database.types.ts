@@ -44,6 +44,7 @@ type OpportunityRow = {
   mandatory_skills: string[]
   status: string
   qr_secret: string | null
+  qr_mode: string
   created_by: string
   created_at: string
 }
@@ -63,11 +64,7 @@ type VerificationRow = {
   registration_id: string
   checkin_time: string | null
   checkout_time: string | null
-  checkin_location: string | null
-  checkout_location: string | null
   photo_url: string | null
-  photo_location: string | null
-  qr_payload: string | null
   peer_confirms: number
   verification_level: string
   verified_hours: number | null
@@ -168,6 +165,7 @@ type OpportunityInsert = {
   mandatory_skills?: string[]
   status?: string
   qr_secret?: string | null
+  qr_mode?: string
   created_by: string
   created_at?: string
 }
@@ -187,11 +185,7 @@ type VerificationInsert = {
   registration_id: string
   checkin_time?: string | null
   checkout_time?: string | null
-  checkin_location?: string | null
-  checkout_location?: string | null
   photo_url?: string | null
-  photo_location?: string | null
-  qr_payload?: string | null
   peer_confirms?: number
   verification_level?: string
   verified_hours?: number | null

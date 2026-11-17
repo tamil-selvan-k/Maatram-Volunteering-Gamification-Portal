@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { View, Text, ScrollView, Pressable } from 'react-native'
 import { useRouter } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -364,7 +365,7 @@ export default function SignupScreen() {
           <Text className="text-muted text-sm">Already have an account? </Text>
           <Text
             className="text-gold text-sm font-semibold"
-            onPress={() => router.back()}
+            onPress={() => safeGoBack(router)}
           >
             Sign In
           </Text>

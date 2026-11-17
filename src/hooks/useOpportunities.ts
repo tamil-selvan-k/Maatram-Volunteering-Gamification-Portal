@@ -5,6 +5,7 @@ import {
   getOpportunityById,
   registerInterest,
   getMyRegistrations,
+  getMyEvents,
   getSelectedCounts,
 } from '@/services/opportunity.service'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
@@ -15,6 +16,7 @@ export const OPPORTUNITY_KEYS = {
   list:   (filters?: OpportunityFilters) => ['opportunities', 'list', filters] as const,
   detail: (id: string) => ['opportunities', 'detail', id] as const,
   myRegistrations: (volunteerId: string) => ['my-registrations', volunteerId] as const,
+  myEvents: (volunteerId: string) => ['my-events', volunteerId] as const,
   selectedCounts: (ids: string[]) => ['selected-counts', ids] as const,
 }
 
@@ -40,6 +42,16 @@ export function useMyRegistrations() {
   return useQuery({
     queryKey: OPPORTUNITY_KEYS.myRegistrations(volunteer?.id ?? ''),
     queryFn: () => getMyRegistrations(volunteer!.id),
+    select: (result) => result.data ?? [],
+    enabled: !!volunteer,
+  })
+}
+
+export function useMyEvents() {
+  const volunteer = useAuthStore(selectVolunteer)
+  return useQuery({
+    queryKey: OPPORTUNITY_KEYS.myEvents(volunteer?.id ?? ''),
+    queryFn: () => getMyEvents(volunteer!.id),
     select: (result) => result.data ?? [],
     enabled: !!volunteer,
   })

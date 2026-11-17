@@ -8,6 +8,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { Trophy, Star, Calendar, Bell, ArrowLeft } from 'lucide-react-native'
 import { useAuthStore, selectVolunteer } from '@/stores/auth.store'
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/useNotifications'
@@ -193,7 +194,7 @@ export default function NotificationsScreen() {
           gap: 12,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity onPress={() => safeGoBack(router)} hitSlop={8}>
           <ArrowLeft size={22} color={COLORS.white} />
         </TouchableOpacity>
         <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 18, flex: 1 }}>

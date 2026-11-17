@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { View, Text } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import * as Location from 'expo-location'
 import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { QRScanner } from '@/components/qr/QRScanner'
@@ -68,7 +69,7 @@ export default function ScanScreen() {
       }
 
       // Navigate back after a brief success display
-      setTimeout(() => router.back(), 1500)
+      setTimeout(() => safeGoBack(), 1500)
     },
     [
       opp,
@@ -81,7 +82,7 @@ export default function ScanScreen() {
     ]
   )
 
-  const handleClose = useCallback(() => router.back(), [])
+  const handleClose = useCallback(() => safeGoBack(), [])
 
   if (!id || !regId) {
     return (

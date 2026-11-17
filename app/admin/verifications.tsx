@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import { Check, X } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
 import { confirmAction, showAlert } from '@/lib/alert'
@@ -178,7 +179,7 @@ export default function VerificationsScreen() {
           borderBottomColor: COLORS.border,
         }}
       >
-        <TouchableOpacity onPress={() => router.back()} activeOpacity={0.7}>
+        <TouchableOpacity onPress={() => safeGoBack(router)} activeOpacity={0.7}>
           <Text style={{ color: COLORS.gold, fontSize: 15, fontWeight: '600' }}>← Back</Text>
         </TouchableOpacity>
         <Text style={{ color: COLORS.white, fontWeight: '700', fontSize: 17 }}>

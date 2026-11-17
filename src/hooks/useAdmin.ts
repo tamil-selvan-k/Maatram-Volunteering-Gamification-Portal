@@ -18,6 +18,7 @@ import {
   getActivityTypes,
   createActivityType,
   deleteActivityType,
+  getVolunteerProfile,
   type CreateOpportunityInput,
   type UpdateOpportunityInput,
 } from '@/services/admin.service'
@@ -38,6 +39,7 @@ export const ADMIN_KEYS = {
   volunteers:       (page: number, search?: string) =>
     ['admin', 'volunteers', page, search ?? ''] as const,
   activityTypes:    ['admin', 'activity-types'] as const,
+  volunteerProfile: (id: string, page: number) => ['admin', 'volunteer-profile', id, page] as const,
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -267,6 +269,17 @@ export function useUpdateVolunteerAdmin() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin', 'volunteers'] })
     },
+  })
+}
+
+// ─── Volunteer profile ───────────────────────────────────────────────────────
+
+export function useVolunteerProfile(volunteerId: string, page = 1) {
+  return useQuery({
+    queryKey: ADMIN_KEYS.volunteerProfile(volunteerId, page),
+    queryFn:  () => getVolunteerProfile(volunteerId, page),
+    select:   (result) => result.data,
+    enabled:  !!volunteerId,
   })
 }
 

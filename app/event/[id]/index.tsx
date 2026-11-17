@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react'
 import { ScrollView, View, Text, TouchableOpacity } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, router } from 'expo-router'
+import { safeGoBack } from '@/utils/navigation'
 import {
   ArrowLeft,
   QrCode,
@@ -14,7 +15,7 @@ import {
   LogOut,
 } from 'lucide-react-native'
 import { MaatramLoader } from '@/components/ui/MaatramLoader'
-import { useOpportunityById, useSelectedCounts } from '@/hooks/useOpportunities'
+import { useOpportunityById, useSelectedCounts, useMyRegistrations } from '@/hooks/useOpportunities'
 import { useVerificationStatus } from '@/hooks/useVerification'
 import { useAuthStore, selectVolunteer, selectIsAdmin } from '@/stores/auth.store'
 import { VerificationBadge } from '@/components/verification/VerificationBadge'
@@ -56,9 +57,16 @@ export default function EventDetailScreen() {
 
   const { data: opp, isLoading: oppLoading } = useOpportunityById(id ?? '')
   const { data: selectedCounts } = useSelectedCounts(id ? [id] : [])
+  const { data: myRegs } = useMyRegistrations()
 
-  // registrationId may be passed as a query param or be absent
-  const regId = registrationId ?? ''
+  // Auto-resolve registrationId from volunteer's registrations if not passed
+  const regId = useMemo(() => {
+    if (registrationId) return registrationId
+    if (!myRegs || !id) return ''
+    const match = myRegs.find((r) => r.opportunity_id === id)
+    return match?.id ?? ''
+  }, [registrationId, myRegs, id])
+
   const { data: verification } = useVerificationStatus(regId)
 
   const verLevel = useMemo(() => {
@@ -80,7 +88,7 @@ export default function EventDetailScreen() {
     [opp]
   )
 
-  const handleBack = useCallback(() => router.back(), [])
+  const handleBack = useCallback(() => safeGoBack(), [])
 
   const goToScan = useCallback(() => {
     router.push(`/event/${id}/scan?registrationId=${regId}`)

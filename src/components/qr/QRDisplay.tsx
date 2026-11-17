@@ -1,20 +1,18 @@
-import React, { memo, useEffect, useState, useCallback } from 'react'
+import React, { memo, useEffect, useState, useCallback, useRef, useImperativeHandle, forwardRef } from 'react'
 import { View, Text, ActivityIndicator } from 'react-native'
 import QRCode from 'react-native-qrcode-svg'
-import { generateQRPayload } from '@/lib/qr'
+import { generateQRPayload, type QRMode } from '@/lib/qr'
 import { COLORS } from '@/constants/theme'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const ROTATION_SECONDS = 300 // 5 minutes
 
-/** Seconds remaining until the next 5-minute boundary. */
 function secondsUntilNextWindow(): number {
   const now = Math.floor(Date.now() / 1000)
   return ROTATION_SECONDS - (now % ROTATION_SECONDS)
 }
 
-/** Format as MM:SS. */
 function formatCountdown(secs: number): string {
   const m = Math.floor(secs / 60)
     .toString()
@@ -25,34 +23,48 @@ function formatCountdown(secs: number): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+export interface QRDisplayHandle {
+  toDataURL: () => Promise<string | null>
+}
+
 interface QRDisplayProps {
   eventId: string
   secret: string
+  mode: QRMode
   size?: number
 }
 
-export const QRDisplay = memo(function QRDisplay({
-  eventId,
-  secret,
-  size = 240,
-}: QRDisplayProps) {
+export const QRDisplay = memo(forwardRef<QRDisplayHandle, QRDisplayProps>(function QRDisplay(
+  { eventId, secret, mode, size = 240 },
+  ref
+) {
   const [payload, setPayload] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(secondsUntilNextWindow)
+  const svgRef = useRef<any>(null)
 
-  /** Regenerate the QR payload for the current window. */
+  useImperativeHandle(ref, () => ({
+    toDataURL: () =>
+      new Promise<string | null>((resolve) => {
+        if (!svgRef.current?.toDataURL) {
+          resolve(null)
+          return
+        }
+        svgRef.current.toDataURL((data: string) => resolve(data))
+      }),
+  }))
+
   const regenerate = useCallback(() => {
-    generateQRPayload(eventId, secret)
+    generateQRPayload(eventId, secret, mode)
       .then((p) => setPayload(p))
       .catch((e: unknown) => console.error('[QRDisplay] generation error', e))
-  }, [eventId, secret])
+  }, [eventId, secret, mode])
 
-  // Generate on mount
   useEffect(() => {
     regenerate()
   }, [regenerate])
 
-  // Countdown tick every second; regenerate on window boundary
   useEffect(() => {
+    if (mode === 'static') return
     const id = setInterval(() => {
       setCountdown((prev) => {
         if (prev <= 1) {
@@ -63,7 +75,7 @@ export const QRDisplay = memo(function QRDisplay({
       })
     }, 1000)
     return () => clearInterval(id)
-  }, [regenerate])
+  }, [regenerate, mode])
 
   return (
     <View style={{ alignItems: 'center', gap: 16 }}>
@@ -86,6 +98,7 @@ export const QRDisplay = memo(function QRDisplay({
             size={size}
             color="#0D0D0F"
             backgroundColor="#FFFFFF"
+            getRef={(c: any) => { svgRef.current = c }}
           />
         ) : (
           <View
@@ -101,35 +114,63 @@ export const QRDisplay = memo(function QRDisplay({
         )}
       </View>
 
-      {/* Countdown */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          backgroundColor: COLORS.surfaceElevated,
-          paddingHorizontal: 16,
-          paddingVertical: 8,
-          borderRadius: 999,
-          borderWidth: 1,
-          borderColor: COLORS.border,
-        }}
-      >
+      {/* Status badge */}
+      {mode === 'rotating' ? (
         <View
           style={{
-            width: 8,
-            height: 8,
-            borderRadius: 4,
-            backgroundColor: countdown > 60 ? COLORS.success : COLORS.warning,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: COLORS.surfaceElevated,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: COLORS.border,
           }}
-        />
-        <Text style={{ color: COLORS.muted, fontSize: 13 }}>
-          Rotates in{' '}
-          <Text style={{ color: COLORS.white, fontWeight: '700' }}>
-            {formatCountdown(countdown)}
+        >
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: countdown > 60 ? COLORS.success : COLORS.warning,
+            }}
+          />
+          <Text style={{ color: COLORS.muted, fontSize: 13 }}>
+            Rotates in{' '}
+            <Text style={{ color: COLORS.white, fontWeight: '700' }}>
+              {formatCountdown(countdown)}
+            </Text>
           </Text>
-        </Text>
-      </View>
+        </View>
+      ) : (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: COLORS.surfaceElevated,
+            paddingHorizontal: 16,
+            paddingVertical: 8,
+            borderRadius: 999,
+            borderWidth: 1,
+            borderColor: COLORS.border,
+          }}
+        >
+          <View
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: 4,
+              backgroundColor: COLORS.gold,
+            }}
+          />
+          <Text style={{ color: COLORS.muted, fontSize: 13 }}>
+            Static — <Text style={{ color: COLORS.white, fontWeight: '700' }}>printable</Text>
+          </Text>
+        </View>
+      )}
 
       {/* Hint */}
       <Text
@@ -137,12 +178,13 @@ export const QRDisplay = memo(function QRDisplay({
           color: COLORS.muted,
           fontSize: 12,
           textAlign: 'center',
-          maxWidth: 240,
+          maxWidth: 260,
         }}
       >
-        Display this QR code at the venue. It rotates every 5 minutes to prevent
-        screenshot sharing.
+        {mode === 'rotating'
+          ? 'Display this QR at the venue. It rotates every 5 minutes to prevent screenshot sharing.'
+          : 'This QR never changes — print it and paste it at the venue gate. No need to stand there.'}
       </Text>
     </View>
   )
-})
+}))

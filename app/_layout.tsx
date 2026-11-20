@@ -9,6 +9,7 @@ import { useAuthListener } from '@/hooks/useAuth'
 import { useAuthStore } from '@/stores/auth.store'
 import { useUIStore } from '@/stores/ui.store'
 import { LevelUpModal } from '@/components/gamification/LevelUpModal'
+import { AppAlertModal } from '@/components/ui/AppAlertModal'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { MaatramLoader } from '@/components/ui/MaatramLoader'
 
@@ -62,6 +63,7 @@ function RootLayoutNav() {
         <Stack.Screen name="demo" options={{ headerShown: false }} />
       </Stack>
       <LevelUpModal />
+      <AppAlertModal />
     </>
   )
 }

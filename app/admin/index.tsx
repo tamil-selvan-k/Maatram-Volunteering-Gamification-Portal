@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import * as Clipboard from 'expo-clipboard'
 import { showAlert } from '@/lib/alert'
-import { ChevronLeft, Plus, Camera, Users, Tag } from 'lucide-react-native'
+import { ChevronLeft, Plus, Camera, Users, Tag, Layers, BarChart3 } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
 import { useAdminStats, useAdminOpportunities, useActivityReport } from '@/hooks/useAdmin'
 import type { AdminOpportunityRow } from '@/services/admin.service'
@@ -327,6 +327,62 @@ export default function AdminDashboardScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      {/* Fixed header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: COLORS.border,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <TouchableOpacity
+            onPress={() => router.replace('/(tabs)')}
+            activeOpacity={0.7}
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              backgroundColor: COLORS.surface,
+              borderWidth: 1,
+              borderColor: COLORS.border,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <ChevronLeft size={20} color={COLORS.white} />
+          </TouchableOpacity>
+          <View>
+            <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 22 }}>
+              Admin Dashboard
+            </Text>
+            <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
+              Maatram Foundation
+            </Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          onPress={() => setReportVisible(true)}
+          activeOpacity={0.7}
+          style={{
+            paddingHorizontal: 14,
+            paddingVertical: 8,
+            borderRadius: 12,
+            borderWidth: 1,
+            borderColor: COLORS.gold,
+            backgroundColor: `${COLORS.gold}15`,
+          }}
+        >
+          <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 13 }}>
+            Export Report
+          </Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
         data={oppsResult?.items ?? []}
         keyExtractor={(item) => item.id}
@@ -334,52 +390,6 @@ export default function AdminDashboardScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
           <View>
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <TouchableOpacity
-                  onPress={() => router.replace('/(tabs)')}
-                  activeOpacity={0.7}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 10,
-                    backgroundColor: COLORS.surface,
-                    borderWidth: 1,
-                    borderColor: COLORS.border,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ChevronLeft size={20} color={COLORS.white} />
-                </TouchableOpacity>
-                <View>
-                  <Text style={{ color: COLORS.white, fontWeight: '800', fontSize: 22 }}>
-                    Admin Dashboard
-                  </Text>
-                  <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 2 }}>
-                    Maatram Foundation
-                  </Text>
-                </View>
-              </View>
-              <TouchableOpacity
-                onPress={() => setReportVisible(true)}
-                activeOpacity={0.7}
-                style={{
-                  paddingHorizontal: 14,
-                  paddingVertical: 8,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: COLORS.gold,
-                  backgroundColor: `${COLORS.gold}15`,
-                }}
-              >
-                <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 13 }}>
-                  Export Report
-                </Text>
-              </TouchableOpacity>
-            </View>
-
             {/* Quick nav row */}
             <View style={{ flexDirection: 'row', gap: 10, marginBottom: 20 }}>
               <TouchableOpacity
@@ -443,6 +453,56 @@ export default function AdminDashboardScreen() {
                 <Tag size={15} color={COLORS.gold} />
                 <Text style={{ color: COLORS.white, fontWeight: '600', fontSize: 13 }}>
                   Types
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Action buttons */}
+            <View style={{ gap: 10, marginBottom: 20 }}>
+              <TouchableOpacity
+                onPress={() => router.push('/admin/batch-allocate' as never)}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: `${COLORS.gold}50`,
+                  backgroundColor: `${COLORS.gold}10`,
+                }}
+              >
+                <Layers size={16} color={COLORS.gold} />
+                <Text style={{ color: COLORS.gold, fontWeight: '700', fontSize: 14 }}>
+                  Batch Allocate
+                </Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12 }}>
+                  Multi-opportunity matching
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => router.push('/admin/fairness' as never)}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  paddingVertical: 14,
+                  borderRadius: 14,
+                  borderWidth: 1,
+                  borderColor: `${COLORS.success}50`,
+                  backgroundColor: `${COLORS.success}10`,
+                }}
+              >
+                <BarChart3 size={16} color={COLORS.success} />
+                <Text style={{ color: COLORS.success, fontWeight: '700', fontSize: 14 }}>
+                  Fairness & Metrics
+                </Text>
+                <Text style={{ color: COLORS.muted, fontSize: 12 }}>
+                  Allocation outcomes
                 </Text>
               </TouchableOpacity>
             </View>

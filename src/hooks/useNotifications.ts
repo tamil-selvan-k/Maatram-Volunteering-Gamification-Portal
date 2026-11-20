@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase/client'
 import {
@@ -13,15 +13,18 @@ export const NOTIFICATION_KEYS = {
   unread: (id: string) => ['notifications', id, 'unread'] as const,
 }
 
+let channelCounter = 0
+
 export function useNotifications(volunteerId: string | undefined) {
   const queryClient = useQueryClient()
+  const channelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
 
-  // Realtime subscription
   useEffect(() => {
     if (!volunteerId) return
 
+    const uniqueName = `notifications:${volunteerId}:${++channelCounter}`
     const channel = supabase
-      .channel(`notifications:${volunteerId}`)
+      .channel(uniqueName)
       .on(
         'postgres_changes',
         {
@@ -37,8 +40,11 @@ export function useNotifications(volunteerId: string | undefined) {
       )
       .subscribe()
 
+    channelRef.current = channel
+
     return () => {
       void supabase.removeChannel(channel)
+      channelRef.current = null
     }
   }, [volunteerId, queryClient])
 

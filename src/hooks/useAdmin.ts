@@ -22,6 +22,7 @@ import {
   type CreateOpportunityInput,
   type UpdateOpportunityInput,
 } from '@/services/admin.service'
+import { runBatchAllocation } from '@/services/batch-allocation.service'
 import { getOpportunityById } from '@/services/opportunity.service'
 import type { RegistrationStatus } from '@/types'
 
@@ -40,6 +41,7 @@ export const ADMIN_KEYS = {
     ['admin', 'volunteers', page, search ?? ''] as const,
   activityTypes:    ['admin', 'activity-types'] as const,
   volunteerProfile: (id: string, page: number) => ['admin', 'volunteer-profile', id, page] as const,
+  batchAllocation:  ['admin', 'batch-allocation'] as const,
 }
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -327,6 +329,33 @@ export function useDeleteActivityType() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.activityTypes })
+    },
+  })
+}
+
+// ─── Batch allocation ────────────────────────────────────────────────────────
+
+export function useBatchAllocation() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      opportunityIds,
+      adminId,
+      isDryRun,
+    }: {
+      opportunityIds: string[]
+      adminId: string
+      isDryRun?: boolean
+    }) => {
+      const result = await runBatchAllocation(opportunityIds, adminId, isDryRun)
+      if (result.error) throw new Error(result.error.message)
+      return result.data!
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ADMIN_KEYS.all })
+      void queryClient.invalidateQueries({ queryKey: ['selected-counts'] })
+      void queryClient.invalidateQueries({ queryKey: ['my-registrations'] })
     },
   })
 }

@@ -1,7 +1,7 @@
 import { supabase } from '@/lib/supabase/client'
 import { toAppError } from '@/lib/errors'
 import { allocateOpportunity } from '@/lib/priority'
-import type { VolunteerProfile, OpportunityProfile, CompletedActivity } from '@/lib/priority'
+import type { VolunteerProfile, OpportunityProfile } from '@/lib/priority'
 import type { Result, PaginatedResult, Opportunity, RegistrationStatus, ActivityType, OpportunityStatus, Volunteer } from '@/types'
 
 // ─── Stat types ───────────────────────────────────────────────────────────────
@@ -294,7 +294,7 @@ export async function updateRegistrationStatus(
         volunteer_id: row.volunteer_id,
         title: notif.title,
         body: notif.body,
-        type: 'selection',
+        type: 'opportunity_selected',
       })
     }
 
@@ -334,6 +334,8 @@ export interface CreateOpportunityInput {
   registration_deadline: string
   required_skills: string[]
   mandatory_skills: string[]
+  priority?: number
+  urgency?: 'standard' | 'urgent' | 'emergency'
 }
 
 export type UpdateOpportunityInput = Partial<CreateOpportunityInput> & {
@@ -722,9 +724,7 @@ export async function runAllocation(
     // 3. Fetch volunteer rows
     const { data: volunteers, error: volErr } = await supabase
       .from('volunteers')
-      .select(
-        'id, created_at, preferences, skills, consecutive_rejections, times_selected, times_completed'
-      )
+      .select('id, created_at, preferences, skills, times_selected, times_completed')
       .in('id', volunteerIds)
 
     if (volErr) return { data: null, error: toAppError(volErr) }
@@ -734,85 +734,22 @@ export async function runAllocation(
       created_at: string
       preferences: string[]
       skills: string[]
-      consecutive_rejections: number
       times_selected: number
       times_completed: number
     }
     const volRows = (volunteers ?? []) as VolRow[]
 
-    // 4. Fetch completed activities for each volunteer (from previous selected+verified regs)
-    const { data: prevRegs, error: prevRegErr } = await supabase
-      .from('registrations')
-      .select('id, volunteer_id, opportunity_id')
-      .in('volunteer_id', volunteerIds)
-      .eq('status', 'selected')
-
-    if (prevRegErr) return { data: null, error: toAppError(prevRegErr) }
-
-    const prevRegsArr = (prevRegs ?? []) as Array<{
-      id: string
-      volunteer_id: string
-      opportunity_id: string
-    }>
-
-    const completedActivitiesMap = new Map<string, CompletedActivity[]>()
-
-    if (prevRegsArr.length > 0) {
-      const prevRegIds = prevRegsArr.map((r) => r.id)
-      const { data: verData } = await supabase
-        .from('verifications')
-        .select('registration_id, checkout_time')
-        .in('registration_id', prevRegIds)
-        .not('checkout_time', 'is', null)
-
-      const verRows = (verData ?? []) as Array<{
-        registration_id: string
-        checkout_time: string
-      }>
-
-      if (verRows.length > 0) {
-        const verMap = new Map(verRows.map((v) => [v.registration_id, v.checkout_time]))
-        const oppIds = [...new Set(prevRegsArr.map((r) => r.opportunity_id))]
-
-        const { data: oppsData } = await supabase
-          .from('opportunities')
-          .select('id, activity_type')
-          .in('id', oppIds)
-
-        const oppTypeMap = new Map(
-          ((oppsData ?? []) as Array<{ id: string; activity_type: string }>).map((o) => [
-            o.id,
-            o.activity_type as ActivityType,
-          ])
-        )
-
-        for (const reg of prevRegsArr) {
-          const checkoutTime = verMap.get(reg.id)
-          if (!checkoutTime) continue
-          const type = oppTypeMap.get(reg.opportunity_id)
-          if (!type) continue
-          const existing = completedActivitiesMap.get(reg.volunteer_id) ?? []
-          completedActivitiesMap.set(reg.volunteer_id, [
-            ...existing,
-            { type, completedAt: checkoutTime },
-          ])
-        }
-      }
-    }
-
-    // 5. Build VolunteerProfile objects
+    // 4. Build VolunteerProfile objects
     const applicants: VolunteerProfile[] = volRows.map((vol) => ({
       id: vol.id,
       createdAt: vol.created_at,
       preferences: vol.preferences as ActivityType[],
       skills: vol.skills,
-      consecutiveRejections: vol.consecutive_rejections,
       timesSelected: vol.times_selected,
       timesCompleted: vol.times_completed,
-      completedActivities: completedActivitiesMap.get(vol.id) ?? [],
     }))
 
-    // 6. Build OpportunityProfile
+    // 5. Build OpportunityProfile
     const oppProfile: OpportunityProfile = {
       activityType: opp.activity_type as ActivityType,
       requiredSkills: opp.required_skills,
@@ -820,11 +757,13 @@ export async function runAllocation(
       totalSlots: opp.total_slots,
     }
 
-    // 7. Run algorithm
-    const result = allocateOpportunity(oppProfile, applicants)
+    // 6. Run algorithm with deterministic seed
+    const seed = `${opportunityId}-${Date.now()}`
+    const result = allocateOpportunity(oppProfile, applicants, seed)
 
-    // 8. Map volunteer IDs → registration IDs
+    // 7. Map volunteer IDs to registration IDs
     const volToRegId = new Map(regs.map((r) => [r.volunteer_id, r.id]))
+    const scoreMap = new Map(result.scores.map((s) => [s.volunteerId, s]))
 
     const selectedRegIds = result.selected
       .map((volId) => volToRegId.get(volId))
@@ -834,27 +773,44 @@ export async function runAllocation(
       .map((volId) => volToRegId.get(volId))
       .filter((id): id is string => !!id)
 
-    // 9. Persist statuses
+    // 8. Persist statuses with scores and waitlist positions
     if (selectedRegIds.length > 0) {
-      const { data: selData, error: selErr } = await supabase
-        .from('registrations')
-        .update({ status: 'selected' as RegistrationStatus })
-        .in('id', selectedRegIds)
-        .select('id')
-      if (selErr) return { data: null, error: toAppError(selErr) }
-      if (!selData || selData.length < selectedRegIds.length) {
-        return { data: null, error: toAppError(new Error(`Allocation partially failed — only ${selData?.length ?? 0} of ${selectedRegIds.length} registrations were updated. Check UPDATE policy on registrations table.`)) }
+      const updates = result.selected.map((volId) => {
+        const regId = volToRegId.get(volId)!
+        const score = scoreMap.get(volId)
+        return supabase
+          .from('registrations')
+          .update({
+            status: 'selected' as RegistrationStatus,
+            priority_score: score?.total ?? null,
+          })
+          .eq('id', regId)
+          .select('id')
+      })
+      const results = await Promise.all(updates)
+      const failCount = results.filter((r) => r.error || !r.data?.length).length
+      if (failCount > 0) {
+        return { data: null, error: toAppError(new Error(`Allocation partially failed — ${failCount} of ${selectedRegIds.length} registrations were not updated. Check UPDATE policy on registrations table.`)) }
       }
     }
 
     if (waitlistedRegIds.length > 0) {
-      const { data: wlData, error: wlErr } = await supabase
-        .from('registrations')
-        .update({ status: 'waitlisted' as RegistrationStatus })
-        .in('id', waitlistedRegIds)
-        .select('id')
-      if (wlErr || !wlData || wlData.length < waitlistedRegIds.length) {
-        // Best-effort rollback: reset both selected and any partially-waitlisted rows
+      const updates = result.waitlisted.map((volId, idx) => {
+        const regId = volToRegId.get(volId)!
+        const score = scoreMap.get(volId)
+        return supabase
+          .from('registrations')
+          .update({
+            status: 'waitlisted' as RegistrationStatus,
+            priority_score: score?.total ?? null,
+            waitlist_position: idx + 1,
+          })
+          .eq('id', regId)
+          .select('id')
+      })
+      const results = await Promise.all(updates)
+      const failCount = results.filter((r) => r.error || !r.data?.length).length
+      if (failCount > 0) {
         const rollbackIds = [...selectedRegIds, ...waitlistedRegIds]
         const { error: rollbackErr } = await supabase
           .from('registrations')
@@ -863,11 +819,11 @@ export async function runAllocation(
         const rollbackNote = rollbackErr
           ? ' Rollback also failed — manual DB repair may be needed.'
           : ' Rolled back all statuses to registered.'
-        return { data: null, error: toAppError(wlErr ?? new Error(`Waitlist allocation partially failed — only ${wlData?.length ?? 0} of ${waitlistedRegIds.length} updated.${rollbackNote}`)) }
+        return { data: null, error: toAppError(new Error(`Waitlist allocation partially failed — ${failCount} of ${waitlistedRegIds.length} not updated.${rollbackNote}`)) }
       }
     }
 
-    // 10. Send in-app notifications to selected & waitlisted volunteers
+    // 9. Send in-app notifications to selected & waitlisted volunteers
     const notifications: Array<{
       volunteer_id: string
       title: string
@@ -880,7 +836,7 @@ export async function runAllocation(
         volunteer_id: volId,
         title: 'You have been selected!',
         body: `You've been selected for "${opp.title}". Check the event page for details.`,
-        type: 'selection',
+        type: 'opportunity_selected',
       })
     }
     for (const volId of result.waitlisted) {
@@ -888,7 +844,7 @@ export async function runAllocation(
         volunteer_id: volId,
         title: 'You are waitlisted',
         body: `You've been waitlisted for "${opp.title}". We'll notify you if a slot opens up.`,
-        type: 'selection',
+        type: 'opportunity_selected',
       })
     }
 

@@ -24,6 +24,8 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     qr_mode: 'rotating' as const,
     created_by: 'admin-1',
     created_at: daysFromNow(-2),
+    priority: 3,
+    urgency: 'standard',
   },
   {
     id: 'opp-2',
@@ -45,6 +47,8 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     qr_mode: 'rotating' as const,
     created_by: 'admin-1',
     created_at: daysFromNow(-1),
+    priority: 3,
+    urgency: 'standard',
   },
   {
     id: 'opp-3',
@@ -66,6 +70,8 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     qr_mode: 'rotating' as const,
     created_by: 'admin-1',
     created_at: daysFromNow(-3),
+    priority: 3,
+    urgency: 'standard',
   },
   {
     id: 'opp-4',
@@ -87,6 +93,8 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     qr_mode: 'rotating' as const,
     created_by: 'admin-1',
     created_at: daysFromNow(-1),
+    priority: 3,
+    urgency: 'standard',
   },
   {
     id: 'opp-5',
@@ -108,6 +116,8 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     qr_mode: 'rotating' as const,
     created_by: 'admin-1',
     created_at: daysFromNow(-4),
+    priority: 3,
+    urgency: 'standard',
   },
   {
     id: 'opp-6',
@@ -129,6 +139,8 @@ export const MOCK_OPPORTUNITIES: Opportunity[] = [
     qr_mode: 'rotating' as const,
     created_by: 'admin-1',
     created_at: daysFromNow(-2),
+    priority: 3,
+    urgency: 'standard',
   },
 ]
 

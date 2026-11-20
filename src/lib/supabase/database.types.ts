@@ -47,6 +47,8 @@ type OpportunityRow = {
   qr_mode: string
   created_by: string
   created_at: string
+  priority: number
+  urgency: string
 }
 
 type RegistrationRow = {
@@ -168,6 +170,8 @@ type OpportunityInsert = {
   qr_mode?: string
   created_by: string
   created_at?: string
+  priority?: number
+  urgency?: string
 }
 
 type RegistrationInsert = {
@@ -260,6 +264,58 @@ type ActivityTypeTableInsert = {
   label: string
   accent?: string
   is_active?: boolean
+  created_at?: string
+}
+
+type AllocationRunRow = {
+  id: string
+  opportunity_id: string
+  algorithm_version: string
+  run_at: string
+  run_by: string
+  total_applicants: number
+  eligible_count: number
+  selected_count: number
+  waitlisted_count: number
+  seed: string | null
+  is_dry_run: boolean
+}
+
+type AllocationRunInsert = {
+  id?: string
+  opportunity_id: string
+  algorithm_version?: string
+  run_at?: string
+  run_by: string
+  total_applicants: number
+  eligible_count: number
+  selected_count: number
+  waitlisted_count: number
+  seed?: string | null
+  is_dry_run?: boolean
+}
+
+type AllocationOutcomeRow = {
+  id: string
+  run_id: string
+  volunteer_id: string
+  outcome: string
+  score: number | null
+  score_breakdown: Record<string, unknown> | null
+  exclusion_reason: string | null
+  waitlist_position: number | null
+  created_at: string
+}
+
+type AllocationOutcomeInsert = {
+  id?: string
+  run_id: string
+  volunteer_id: string
+  outcome: string
+  score?: number | null
+  score_breakdown?: Record<string, unknown> | null
+  exclusion_reason?: string | null
+  waitlist_position?: number | null
   created_at?: string
 }
 
@@ -364,6 +420,18 @@ export type Database = {
         Row: VolunteerAvailabilityRow
         Insert: VolunteerAvailabilityInsert
         Update: Partial<VolunteerAvailabilityRow>
+        Relationships: []
+      }
+      allocation_runs: {
+        Row: AllocationRunRow
+        Insert: AllocationRunInsert
+        Update: Partial<AllocationRunRow>
+        Relationships: []
+      }
+      allocation_outcomes: {
+        Row: AllocationOutcomeRow
+        Insert: AllocationOutcomeInsert
+        Update: Partial<AllocationOutcomeRow>
         Relationships: []
       }
     }

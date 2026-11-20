@@ -32,6 +32,8 @@ interface FormState {
   registration_deadline: string // YYYY-MM-DDTHH:MM
   required_skills: string      // comma-separated
   mandatory_skills: string     // comma-separated
+  priority: number
+  urgency: 'standard' | 'urgent' | 'emergency'
 }
 
 const DEFAULT_FORM: FormState = {
@@ -46,7 +48,23 @@ const DEFAULT_FORM: FormState = {
   registration_deadline: '',
   required_skills: '',
   mandatory_skills: '',
+  priority: 3,
+  urgency: 'standard',
 }
+
+const PRIORITY_OPTIONS = [
+  { value: 1, label: 'Critical' },
+  { value: 2, label: 'High' },
+  { value: 3, label: 'Normal' },
+  { value: 4, label: 'Low' },
+  { value: 5, label: 'Backfill' },
+] as const
+
+const URGENCY_OPTIONS = [
+  { value: 'standard' as const, label: 'Standard' },
+  { value: 'urgent' as const, label: 'Urgent' },
+  { value: 'emergency' as const, label: 'Emergency' },
+] as const
 
 // ─── Shared style helpers ─────────────────────────────────────────────────────
 
@@ -134,6 +152,8 @@ export default function NewOpportunityScreen() {
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean),
+        priority: form.priority,
+        urgency: form.urgency,
       },
       {
         onSuccess: () => {
@@ -355,6 +375,73 @@ export default function NewOpportunityScreen() {
             placeholder="e.g. Driving License"
             placeholderTextColor={COLORS.muted}
           />
+
+          {/* ── Priority ── */}
+          <Text style={LABEL}>PRIORITY</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {PRIORITY_OPTIONS.map(({ value, label }) => {
+              const selected = form.priority === value
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => set('priority', value)}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    backgroundColor: selected ? `${COLORS.gold}20` : COLORS.surface,
+                    borderColor: selected ? COLORS.gold : COLORS.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? COLORS.gold : COLORS.muted,
+                      fontSize: 12,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {/* ── Urgency ── */}
+          <Text style={LABEL}>URGENCY</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {URGENCY_OPTIONS.map(({ value, label }) => {
+              const selected = form.urgency === value
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => set('urgency', value)}
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    backgroundColor: selected ? `${COLORS.gold}20` : COLORS.surface,
+                    borderColor: selected ? COLORS.gold : COLORS.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? COLORS.gold : COLORS.muted,
+                      fontWeight: '600',
+                      fontSize: 14,
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
 
           {/* ── Submit ── */}
           <TouchableOpacity

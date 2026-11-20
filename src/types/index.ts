@@ -81,6 +81,8 @@ export interface Opportunity {
   qr_mode: 'rotating' | 'static'
   created_by: string
   created_at: string
+  priority: number
+  urgency: 'standard' | 'urgent' | 'emergency'
 }
 
 export interface Registration {
@@ -183,4 +185,32 @@ export interface VolunteerAvailability {
   max_weekly_hours: number | null
   created_at: string
   updated_at: string
+}
+
+// ─── Allocation ────────────────────────────────────────────────────────────
+
+export interface AllocationRun {
+  id: string
+  opportunity_id: string
+  algorithm_version: string
+  run_at: string
+  run_by: string
+  total_applicants: number
+  eligible_count: number
+  selected_count: number
+  waitlisted_count: number
+  seed: string | null
+  is_dry_run: boolean
+}
+
+export interface AllocationOutcome {
+  id: string
+  run_id: string
+  volunteer_id: string
+  outcome: 'selected' | 'waitlisted' | 'excluded'
+  score: number | null
+  score_breakdown: Record<string, number> | null
+  exclusion_reason: string | null
+  waitlist_position: number | null
+  created_at: string
 }

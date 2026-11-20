@@ -34,6 +34,8 @@ interface FormState {
   required_skills: string       // comma-separated
   mandatory_skills: string      // comma-separated
   status: OpportunityStatus
+  priority: number
+  urgency: 'standard' | 'urgent' | 'emergency'
 }
 
 const DEFAULT_FORM: FormState = {
@@ -49,7 +51,23 @@ const DEFAULT_FORM: FormState = {
   required_skills: '',
   mandatory_skills: '',
   status: 'open',
+  priority: 3,
+  urgency: 'standard',
 }
+
+const PRIORITY_OPTIONS = [
+  { value: 1, label: 'Critical' },
+  { value: 2, label: 'High' },
+  { value: 3, label: 'Normal' },
+  { value: 4, label: 'Low' },
+  { value: 5, label: 'Backfill' },
+] as const
+
+const URGENCY_OPTIONS = [
+  { value: 'standard' as const, label: 'Standard' },
+  { value: 'urgent' as const, label: 'Urgent' },
+  { value: 'emergency' as const, label: 'Emergency' },
+] as const
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -130,6 +148,8 @@ export default function EditOpportunityScreen() {
         required_skills: opportunity.required_skills.join(', '),
         mandatory_skills: opportunity.mandatory_skills.join(', '),
         status: opportunity.status,
+        priority: opportunity.priority ?? 3,
+        urgency: opportunity.urgency ?? 'standard',
       })
       setHydrated(true)
     }
@@ -194,6 +214,8 @@ export default function EditOpportunityScreen() {
             .map((s) => s.trim())
             .filter(Boolean),
           status: form.status,
+          priority: form.priority,
+          urgency: form.urgency,
         },
       },
       {
@@ -458,6 +480,73 @@ export default function EditOpportunityScreen() {
             placeholder="e.g. Driving License"
             placeholderTextColor={COLORS.muted}
           />
+
+          {/* ── Priority ── */}
+          <Text style={LABEL}>PRIORITY</Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+            {PRIORITY_OPTIONS.map(({ value, label }) => {
+              const selected = form.priority === value
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => set('priority', value)}
+                  activeOpacity={0.7}
+                  style={{
+                    paddingHorizontal: 12,
+                    paddingVertical: 8,
+                    borderRadius: 10,
+                    borderWidth: 1,
+                    backgroundColor: selected ? `${COLORS.gold}20` : COLORS.surface,
+                    borderColor: selected ? COLORS.gold : COLORS.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? COLORS.gold : COLORS.muted,
+                      fontSize: 12,
+                      fontWeight: '600',
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
+
+          {/* ── Urgency ── */}
+          <Text style={LABEL}>URGENCY</Text>
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {URGENCY_OPTIONS.map(({ value, label }) => {
+              const selected = form.urgency === value
+              return (
+                <TouchableOpacity
+                  key={value}
+                  onPress={() => set('urgency', value)}
+                  activeOpacity={0.7}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 11,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    backgroundColor: selected ? `${COLORS.gold}20` : COLORS.surface,
+                    borderColor: selected ? COLORS.gold : COLORS.border,
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: selected ? COLORS.gold : COLORS.muted,
+                      fontWeight: '600',
+                      fontSize: 14,
+                    }}
+                  >
+                    {label}
+                  </Text>
+                </TouchableOpacity>
+              )
+            })}
+          </View>
 
           {/* ── Save Button ── */}
           <TouchableOpacity

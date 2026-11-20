@@ -263,6 +263,38 @@ type ActivityTypeTableInsert = {
   created_at?: string
 }
 
+type VolunteerAvailabilityRow = {
+  id: string
+  volunteer_id: string
+  type: 'recurring' | 'exception'
+  day_of_week: number | null
+  specific_date: string | null
+  start_time: string
+  end_time: string
+  timezone: string
+  status: 'available' | 'unavailable' | 'tentative'
+  mode_preference: 'online' | 'offline' | 'any'
+  max_weekly_hours: number | null
+  created_at: string
+  updated_at: string
+}
+
+type VolunteerAvailabilityInsert = {
+  id?: string
+  volunteer_id: string
+  type: 'recurring' | 'exception'
+  day_of_week?: number | null
+  specific_date?: string | null
+  start_time: string
+  end_time: string
+  timezone?: string
+  status?: 'available' | 'unavailable' | 'tentative'
+  mode_preference?: 'online' | 'offline' | 'any'
+  max_weekly_hours?: number | null
+  created_at?: string
+  updated_at?: string
+}
+
 // ─── Database type (matches @supabase/postgrest-js GenericTable / GenericSchema) ─
 
 export type Database = {
@@ -326,6 +358,12 @@ export type Database = {
         Row: ActivityTypeTableRow
         Insert: ActivityTypeTableInsert
         Update: Partial<ActivityTypeTableRow>
+        Relationships: []
+      }
+      volunteer_availability: {
+        Row: VolunteerAvailabilityRow
+        Insert: VolunteerAvailabilityInsert
+        Update: Partial<VolunteerAvailabilityRow>
         Relationships: []
       }
     }

@@ -171,20 +171,18 @@ export function allocateOpportunity(
   opp: OpportunityProfile,
   applicants: VolunteerProfile[]
 ): AllocationResult {
-  // Under-subscribed — accept all
-  if (applicants.length <= opp.totalSlots) {
-    return {
-      selected: applicants.map((v) => v.id),
-      waitlisted: [],
-      remainingSlots: opp.totalSlots - applicants.length,
-      sendSecondNotification: true,
-    }
-  }
-
-  // Pre-filter: mandatory skills are hard requirements
   const eligible = applicants.filter((v) =>
     opp.mandatorySkills.every((s) => v.skills.includes(s))
   )
+
+  if (eligible.length <= opp.totalSlots) {
+    return {
+      selected: eligible.map((v) => v.id),
+      waitlisted: [],
+      remainingSlots: opp.totalSlots - eligible.length,
+      sendSecondNotification: eligible.length < opp.totalSlots,
+    }
+  }
 
   const scored = eligible
     .map((v) => ({ ...computePriorityScore(v, opp), vol: v }))
@@ -199,4 +197,32 @@ export function allocateOpportunity(
     remainingSlots: 0,
     sendSecondNotification: false,
   }
+}
+
+// ─── Availability-aware eligibility filter ──────────────────────────────────
+
+export interface EligibilityInput {
+  volunteer: VolunteerProfile
+  isAvailable: boolean
+  modeCompatible: boolean
+}
+
+export function filterEligible(
+  _opp: OpportunityProfile,
+  inputs: EligibilityInput[]
+): { eligible: VolunteerProfile[]; excluded: { volunteerId: string; reason: string }[] } {
+  const eligible: VolunteerProfile[] = []
+  const excluded: { volunteerId: string; reason: string }[] = []
+
+  for (const input of inputs) {
+    if (!input.isAvailable) {
+      excluded.push({ volunteerId: input.volunteer.id, reason: 'not_available' })
+    } else if (!input.modeCompatible) {
+      excluded.push({ volunteerId: input.volunteer.id, reason: 'mode_incompatible' })
+    } else {
+      eligible.push(input.volunteer)
+    }
+  }
+
+  return { eligible, excluded }
 }

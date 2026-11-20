@@ -53,6 +53,7 @@ export const OpportunityCard = memo(function OpportunityCard({
   }, [opp.id])
 
   const timeLeft = formatTimeLeft(opp.registration_deadline)
+  const isRegClosed = timeLeft === 'Closed'
   const deadlineColors = deadlineBadgeColors(timeLeft)
   const accentColor = ACTIVITY_STYLES[opp.activity_type].accent
   const remaining = Math.max(0, opp.total_slots - filledSlots)
@@ -68,14 +69,16 @@ export const OpportunityCard = memo(function OpportunityCard({
           {/* Header row */}
           <View className="flex-row items-center justify-between mb-3">
             <ActivityBadge type={opp.activity_type} />
-            <View
-              className="px-2.5 py-1 rounded-lg"
-              style={{ backgroundColor: deadlineColors.bg }}
-            >
-              <Text className="text-xs font-semibold" style={{ color: deadlineColors.text }}>
-                {timeLeft}
-              </Text>
-            </View>
+            {!isRegClosed && (
+              <View
+                className="px-2.5 py-1 rounded-lg"
+                style={{ backgroundColor: deadlineColors.bg }}
+              >
+                <Text className="text-xs font-semibold" style={{ color: deadlineColors.text }}>
+                  {timeLeft}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Title */}
@@ -120,34 +123,38 @@ export const OpportunityCard = memo(function OpportunityCard({
         </TouchableOpacity>
 
         {/* Footer row — outside the card TouchableOpacity so Register doesn't navigate */}
-        <View className="flex-row items-center justify-between px-4 py-3">
-          <View className="flex-row items-center gap-1.5">
-            <Users size={14} color={slotColor(remaining)} />
-            <Text className="text-xs font-semibold" style={{ color: slotColor(remaining) }}>
-              {remaining} of {opp.total_slots} slots left
-            </Text>
-          </View>
-          {registrationStatus ? (
-            <View
-              className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
-              style={{
-                backgroundColor: (STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted) + '20',
-                borderWidth: 1,
-                borderColor: (STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted) + '50',
-              }}
-            >
-              <CheckCircle size={12} color={STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted} />
-              <Text
-                className="text-xs font-semibold"
-                style={{ color: STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted }}
+        {!(isRegClosed && !registrationStatus) && (
+          <View className="flex-row items-center justify-between px-4 py-3">
+            {!isRegClosed && (
+              <View className="flex-row items-center gap-1.5">
+                <Users size={14} color={slotColor(remaining)} />
+                <Text className="text-xs font-semibold" style={{ color: slotColor(remaining) }}>
+                  {remaining} of {opp.total_slots} slots left
+                </Text>
+              </View>
+            )}
+            {registrationStatus ? (
+              <View
+                className="flex-row items-center gap-1.5 px-3 py-1.5 rounded-full"
+                style={{
+                  backgroundColor: (STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted) + '20',
+                  borderWidth: 1,
+                  borderColor: (STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted) + '50',
+                }}
               >
-                {STATUS_LABELS[registrationStatus]?.label ?? registrationStatus}
-              </Text>
-            </View>
-          ) : (
-            <Button title="Register" size="sm" loading={isRegistering} onPress={handleRegister} />
-          )}
-        </View>
+                <CheckCircle size={12} color={STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted} />
+                <Text
+                  className="text-xs font-semibold"
+                  style={{ color: STATUS_LABELS[registrationStatus]?.color ?? COLORS.muted }}
+                >
+                  {STATUS_LABELS[registrationStatus]?.label ?? registrationStatus}
+                </Text>
+              </View>
+            ) : (
+              <Button title="Register" size="sm" loading={isRegistering} onPress={handleRegister} />
+            )}
+          </View>
+        )}
       </View>
     </View>
   )

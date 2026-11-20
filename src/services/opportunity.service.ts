@@ -10,7 +10,8 @@ export async function getOpportunities(
       .from('opportunities')
       .select('*')
       .eq('status', 'open')
-      .order('event_date', { ascending: true })
+      .gte('event_date', new Date().toISOString())
+      .order('event_date', { ascending: false })
 
     if (filters?.activityType) {
       query = query.eq('activity_type', filters.activityType)
@@ -104,7 +105,7 @@ export async function getMyEvents(
       .select('*')
       .in('id', ids)
       .not('status', 'in', '(completed,cancelled)')
-      .gte('event_date', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .gte('event_date', new Date().toISOString())
       .order('event_date', { ascending: true })
 
     if (error) return { data: null, error: toAppError(error) }

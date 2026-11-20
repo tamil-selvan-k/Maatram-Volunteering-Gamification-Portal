@@ -163,3 +163,24 @@ export interface OpportunityFilters {
   mode?: 'online' | 'offline' | null
   search?: string
 }
+
+// ─── Availability ───────────────────────────────────────────────────────────
+
+export type AvailabilityType = 'recurring' | 'exception'
+export type AvailabilityStatus = 'available' | 'unavailable' | 'tentative'
+
+export interface VolunteerAvailability {
+  id: string
+  volunteer_id: string
+  type: AvailabilityType
+  day_of_week: number | null
+  specific_date: string | null
+  start_time: string
+  end_time: string
+  timezone: string
+  status: AvailabilityStatus
+  mode_preference: 'online' | 'offline' | 'any'
+  max_weekly_hours: number | null
+  created_at: string
+  updated_at: string
+}

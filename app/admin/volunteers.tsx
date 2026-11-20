@@ -14,6 +14,7 @@ import { safeGoBack } from '@/utils/navigation'
 import { COLORS } from '@/constants/theme'
 import { confirmAction, showAlert } from '@/lib/alert'
 import { useVolunteers, useUpdateVolunteerAdmin } from '@/hooks/useAdmin'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import type { Volunteer } from '@/types'
 
 // ─── Level badge ──────────────────────────────────────────────────────────────
@@ -271,9 +272,7 @@ export default function VolunteersScreen() {
       </View>
 
       {isLoading && page === 1 ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={COLORS.gold} />
-        </View>
+        <MaatramLoader />
       ) : (
         <FlatList
           data={result?.items ?? []}

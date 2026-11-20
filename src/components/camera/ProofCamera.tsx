@@ -10,6 +10,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera'
 import * as Location from 'expo-location'
 import { Camera, X, AlertTriangle, MapPin } from 'lucide-react-native'
 import { COLORS } from '@/constants/theme'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import type { GpsCoords } from '@/services/verification.service'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -86,11 +87,7 @@ export const ProofCamera = memo(function ProofCamera({
 
   // Permission gate
   if (!permission) {
-    return (
-      <View style={styles.center}>
-        <ActivityIndicator color={COLORS.gold} />
-      </View>
-    )
+    return <MaatramLoader />
   }
 
   if (!permission.granted) {

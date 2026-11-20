@@ -4,7 +4,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  ActivityIndicator,
   Image,
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -18,6 +17,7 @@ import {
   useApproveVerification,
   useRejectVerification,
 } from '@/hooks/useAdmin'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import type { PendingVerificationRow } from '@/services/admin.service'
 
 // ─── Verification card ────────────────────────────────────────────────────────
@@ -189,10 +189,7 @@ export default function VerificationsScreen() {
       </View>
 
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={COLORS.gold} />
-          <Text style={{ color: COLORS.muted, marginTop: 10, fontSize: 13 }}>Loading…</Text>
-        </View>
+        <MaatramLoader />
       ) : verifications.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ color: COLORS.muted, fontSize: 15, textAlign: 'center' }}>

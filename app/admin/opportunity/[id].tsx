@@ -20,6 +20,7 @@ import {
   useRunAllocation,
   useAdminOpportunity,
 } from '@/hooks/useAdmin'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import type { AdminRegistrationRow } from '@/services/admin.service'
 import type { RegistrationStatus } from '@/types'
 
@@ -434,9 +435,7 @@ export default function OpportunityDetailScreen() {
 
       {/* List */}
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={COLORS.gold} />
-        </View>
+        <MaatramLoader />
       ) : registrations.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
           <Text style={{ color: COLORS.muted, fontSize: 15, textAlign: 'center' }}>

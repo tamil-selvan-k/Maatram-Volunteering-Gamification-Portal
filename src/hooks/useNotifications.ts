@@ -22,9 +22,17 @@ export function useNotifications(volunteerId: string | undefined) {
   useEffect(() => {
     if (!volunteerId) return
 
-    const uniqueName = `notifications:${volunteerId}:${++channelCounter}`
-    const channel = supabase
-      .channel(uniqueName)
+    // Tear down any leftover channel from a prior mount (strict mode)
+    if (channelRef.current) {
+      supabase.removeChannel(channelRef.current).catch(() => {})
+      channelRef.current = null
+    }
+
+    let aborted = false
+    const uniqueName = `notifications:${volunteerId}:${Date.now()}-${++channelCounter}`
+    const channel = supabase.channel(uniqueName)
+
+    channel
       .on(
         'postgres_changes',
         {
@@ -34,16 +42,22 @@ export function useNotifications(volunteerId: string | undefined) {
           filter: `volunteer_id=eq.${volunteerId}`,
         },
         () => {
+          if (aborted) return
           void queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.all(volunteerId) })
           void queryClient.invalidateQueries({ queryKey: NOTIFICATION_KEYS.unread(volunteerId) })
         }
       )
-      .subscribe()
+      .subscribe((status) => {
+        if (aborted && status === 'SUBSCRIBED') {
+          supabase.removeChannel(channel).catch(() => {})
+        }
+      })
 
     channelRef.current = channel
 
     return () => {
-      void supabase.removeChannel(channel)
+      aborted = true
+      supabase.removeChannel(channel).catch(() => {})
       channelRef.current = null
     }
   }, [volunteerId, queryClient])

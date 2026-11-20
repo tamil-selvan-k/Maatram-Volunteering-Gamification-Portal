@@ -14,6 +14,7 @@ import { COLORS } from '@/constants/theme'
 import { useAdminOpportunities, useBatchAllocation } from '@/hooks/useAdmin'
 import { useAuthStore } from '@/stores/auth.store'
 import { showAlert } from '@/lib/alert'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { formatEventDate } from '@/utils'
 import type { AdminOpportunityRow } from '@/services/admin.service'
 import type { BatchAllocationSummary } from '@/services/batch-allocation.service'
@@ -375,12 +376,7 @@ export default function BatchAllocateScreen() {
       ) : (
         <>
           {oppsLoading ? (
-            <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-              <ActivityIndicator color={COLORS.gold} />
-              <Text style={{ color: COLORS.muted, marginTop: 10, fontSize: 13 }}>
-                Loading opportunities...
-              </Text>
-            </View>
+            <MaatramLoader />
           ) : openOpps.length === 0 ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 }}>
               <Text style={{ color: COLORS.muted, textAlign: 'center', fontSize: 14 }}>

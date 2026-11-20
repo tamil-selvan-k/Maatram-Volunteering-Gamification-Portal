@@ -19,6 +19,7 @@ import {
   useCreateActivityType,
   useDeleteActivityType,
 } from '@/hooks/useAdmin'
+import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import type { ActivityTypeRow } from '@/services/admin.service'
 
 // ─── Preset accent colors ─────────────────────────────────────────────────────
@@ -343,9 +344,7 @@ export default function ActivityTypesScreen() {
       </View>
 
       {isLoading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={COLORS.gold} />
-        </View>
+        <MaatramLoader />
       ) : (
         <FlatList
           data={types}

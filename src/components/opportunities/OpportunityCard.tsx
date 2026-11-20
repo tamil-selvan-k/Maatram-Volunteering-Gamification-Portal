@@ -1,7 +1,7 @@
 import React, { memo, useCallback } from 'react'
 import { View, Text, TouchableOpacity } from 'react-native'
 import { router } from 'expo-router'
-import { Calendar, Clock, Users, Globe, Building2, MapPin, CheckCircle } from 'lucide-react-native'
+import { Calendar, Clock, Users, Globe, Building2, MapPin, CheckCircle, AlertTriangle, Zap } from 'lucide-react-native'
 import { ActivityBadge } from '@/components/ui/ActivityBadge'
 import { Button } from '@/components/ui/Button'
 import { ACTIVITY_STYLES } from '@/constants/activities'
@@ -27,6 +27,20 @@ function deadlineBadgeColors(timeLeft: string): { bg: string; text: string } {
   if (timeLeft === 'Closed') return { bg: COLORS.error + '22', text: COLORS.error }
   if (timeLeft.endsWith('h left')) return { bg: '#F9731622', text: COLORS.warning }
   return { bg: COLORS.surfaceElevated, text: '#FACC15' }
+}
+
+const PRIORITY_BADGE: Record<number, { label: string; color: string; icon: boolean } | null> = {
+  1: { label: 'Critical', color: '#EF4444', icon: true },
+  2: { label: 'High Priority', color: '#F97316', icon: true },
+  3: null,
+  4: null,
+  5: null,
+}
+
+const URGENCY_BADGE: Record<string, { label: string; color: string } | null> = {
+  standard: null,
+  urgent: { label: 'Urgent', color: '#F97316' },
+  emergency: { label: 'Emergency', color: '#EF4444' },
 }
 
 const STATUS_LABELS: Partial<Record<RegistrationStatus, { label: string; color: string }>> = {
@@ -68,7 +82,31 @@ export const OpportunityCard = memo(function OpportunityCard({
         <TouchableOpacity onPress={handleCardPress} activeOpacity={0.85} className="p-4 pb-2">
           {/* Header row */}
           <View className="flex-row items-center justify-between mb-3">
-            <ActivityBadge type={opp.activity_type} />
+            <View className="flex-row items-center gap-2 flex-1 flex-wrap">
+              <ActivityBadge type={opp.activity_type} />
+              {PRIORITY_BADGE[opp.priority] && (
+                <View
+                  className="flex-row items-center gap-1 px-2 py-0.5 rounded-lg"
+                  style={{ backgroundColor: PRIORITY_BADGE[opp.priority]!.color + '20' }}
+                >
+                  <AlertTriangle size={10} color={PRIORITY_BADGE[opp.priority]!.color} />
+                  <Text className="text-[10px] font-bold" style={{ color: PRIORITY_BADGE[opp.priority]!.color }}>
+                    {PRIORITY_BADGE[opp.priority]!.label}
+                  </Text>
+                </View>
+              )}
+              {URGENCY_BADGE[opp.urgency] && (
+                <View
+                  className="flex-row items-center gap-1 px-2 py-0.5 rounded-lg"
+                  style={{ backgroundColor: URGENCY_BADGE[opp.urgency]!.color + '20' }}
+                >
+                  <Zap size={10} color={URGENCY_BADGE[opp.urgency]!.color} />
+                  <Text className="text-[10px] font-bold" style={{ color: URGENCY_BADGE[opp.urgency]!.color }}>
+                    {URGENCY_BADGE[opp.urgency]!.label}
+                  </Text>
+                </View>
+              )}
+            </View>
             {!isRegClosed && (
               <View
                 className="px-2.5 py-1 rounded-lg"

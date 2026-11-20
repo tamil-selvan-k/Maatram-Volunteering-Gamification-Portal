@@ -13,6 +13,8 @@ import {
   Calendar,
   LogIn,
   LogOut,
+  AlertTriangle,
+  Zap,
 } from 'lucide-react-native'
 import { MaatramLoader } from '@/components/ui/MaatramLoader'
 import { useOpportunityById, useSelectedCounts, useMyRegistrations } from '@/hooks/useOpportunities'
@@ -154,8 +156,8 @@ export default function EventDetailScreen() {
         contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Activity badge */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        {/* Activity badge + priority/urgency */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
           <ActivityBadge type={opp.activity_type} />
           <View
             style={{
@@ -181,6 +183,46 @@ export default function EventDetailScreen() {
               {opp.status.replace('_', ' ')}
             </Text>
           </View>
+          {opp.priority <= 2 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 999,
+                backgroundColor: (opp.priority === 1 ? '#EF4444' : '#F97316') + '20',
+                borderWidth: 1,
+                borderColor: (opp.priority === 1 ? '#EF4444' : '#F97316') + '50',
+              }}
+            >
+              <AlertTriangle size={11} color={opp.priority === 1 ? '#EF4444' : '#F97316'} />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: opp.priority === 1 ? '#EF4444' : '#F97316' }}>
+                {opp.priority === 1 ? 'Critical' : 'High Priority'}
+              </Text>
+            </View>
+          )}
+          {opp.urgency !== 'standard' && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 4,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 999,
+                backgroundColor: (opp.urgency === 'emergency' ? '#EF4444' : '#F97316') + '20',
+                borderWidth: 1,
+                borderColor: (opp.urgency === 'emergency' ? '#EF4444' : '#F97316') + '50',
+              }}
+            >
+              <Zap size={11} color={opp.urgency === 'emergency' ? '#EF4444' : '#F97316'} />
+              <Text style={{ fontSize: 11, fontWeight: '700', color: opp.urgency === 'emergency' ? '#EF4444' : '#F97316' }}>
+                {opp.urgency === 'emergency' ? 'Emergency' : 'Urgent'}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Title */}
